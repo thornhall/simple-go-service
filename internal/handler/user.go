@@ -1,0 +1,82 @@
+package handler
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/thornhall/simple-go-service/internal/model"
+	"github.com/thornhall/simple-go-service/internal/service"
+)
+
+type UserHandler struct {
+	Svc *service.UserService
+}
+
+func NewUserHandler(svc *service.UserService) *UserHandler {
+	return &UserHandler{Svc: svc}
+}
+
+func (h *UserHandler) List(ctx *gin.Context) {
+	users, err := h.Svc.List()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, users)
+}
+
+func (h *UserHandler) Get(ctx *gin.Context) {
+	objectId := ctx.Param("object_id")
+	user, err := h.Svc.Get(objectId)
+	if err == service.ErrNotFound {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	} else if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, user)
+}
+
+func (h *UserHandler) Create(ctx *gin.Context) {
+	var input model.CreateUserInputDTO
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	user, err := h.Svc.Create(input)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusCreated, user)
+}
+
+func (h *UserHandler) Update(ctx *gin.Context) {
+	objectId := ctx.Param("object_id")
+	var input model.UpdateUserInputDTO
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	user, err := h.Svc.Update(objectId, input)
+	if err == service.ErrNotFound {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	} else if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, user)
+}
+
+func (h *UserHandler) Delete(ctx *gin.Context) {
+	objectId := ctx.Param("object_id")
+	if err := h.Svc.Delete(objectId); err == service.ErrNotFound {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+	} else if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	} else {
+		ctx.Status(http.StatusNoContent)
+	}
+}
