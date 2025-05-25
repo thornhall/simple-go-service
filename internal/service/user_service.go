@@ -24,19 +24,27 @@ func NewUserService(repo UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-func (s *UserService) Get(objectId string) (*model.User, error) {
+func (s *UserService) Get(objectId string) (*model.UserResponse, error) {
 	u, err := s.repo.FindByID(objectId)
 	if err != nil {
 		return nil, ErrNotFound
 	}
-	return u, nil
+	return ToUserResponse(u), nil
 }
 
-func (s *UserService) List() ([]*model.User, error) {
-	return s.repo.FindAll()
+func (s *UserService) List() ([]*model.UserResponse, error) {
+	users, err := s.repo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	userResponse := []*model.UserResponse{}
+	for _, user := range users {
+		userResponse = append(userResponse, ToUserResponse(user))
+	}
+	return userResponse, nil
 }
 
-func (s *UserService) Create(input model.CreateUserInputDTO) (*model.User, error) {
+func (s *UserService) Create(input model.CreateUserInput) (*model.UserResponse, error) {
 	if input.FirstName == "" || input.Email == "" {
 		return nil, errors.New("name and email are required")
 	}
@@ -51,10 +59,10 @@ func (s *UserService) Create(input model.CreateUserInputDTO) (*model.User, error
 	if err := s.repo.Create(u); err != nil {
 		return nil, err
 	}
-	return u, nil
+	return ToUserResponse(u), nil
 }
 
-func (s *UserService) Update(objectId string, input model.UpdateUserInputDTO) (*model.User, error) {
+func (s *UserService) Update(objectId string, input model.UpdateUserInput) (*model.UserResponse, error) {
 	u, err := s.repo.FindByID(objectId)
 	if err != nil {
 		return nil, ErrNotFound
@@ -73,9 +81,20 @@ func (s *UserService) Update(objectId string, input model.UpdateUserInputDTO) (*
 	if err := s.repo.Update(u); err != nil {
 		return nil, err
 	}
-	return u, nil
+	return ToUserResponse(u), nil
 }
 
 func (s *UserService) Delete(objectId string) error {
 	return s.repo.Delete(objectId)
+}
+
+func ToUserResponse(u *model.User) *model.UserResponse {
+	return &model.UserResponse{
+		ObjectId:  u.ObjectId,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		Email:     u.Email,
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
+	}
 }

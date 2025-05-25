@@ -39,7 +39,7 @@ func (h *UserHandler) Get(ctx *gin.Context) {
 }
 
 func (h *UserHandler) Create(ctx *gin.Context) {
-	var input model.CreateUserInputDTO
+	var input model.CreateUserInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -54,7 +54,7 @@ func (h *UserHandler) Create(ctx *gin.Context) {
 
 func (h *UserHandler) Update(ctx *gin.Context) {
 	objectId := ctx.Param("object_id")
-	var input model.UpdateUserInputDTO
+	var input model.UpdateUserInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

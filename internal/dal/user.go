@@ -68,7 +68,6 @@ RETURNING object_id, created_at, updated_at
 	return row.Scan(&u.ObjectId, &u.CreatedAt, &u.UpdatedAt)
 }
 
-// Update applies changes to an existing user identified by ObjectId.
 func (r *UserRepo) Update(u *model.User) error {
 	const sql = `
 UPDATE users
