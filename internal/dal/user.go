@@ -60,12 +60,12 @@ func (r *UserRepo) Create(u *model.User) error {
 	const sql = `
 INSERT INTO users (object_id, first_name, last_name, email)
 VALUES (get_random_uuid(), $1, $2, $3)
-RETURNING id, created_at, updated_at
+RETURNING object_id, created_at, updated_at
 `
 	row := r.db.QueryRow(context.Background(), sql,
 		u.FirstName, u.LastName, u.Email,
 	)
-	return row.Scan(&u.Id, &u.CreatedAt, &u.UpdatedAt)
+	return row.Scan(&u.ObjectId, &u.CreatedAt, &u.UpdatedAt)
 }
 
 // Update applies changes to an existing user identified by ObjectId.
