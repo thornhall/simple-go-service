@@ -44,10 +44,10 @@ jobs:
 
       - name: Install golang-migrate CLI
         run: |
-          go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+          go install -tags "postgres" github.com/golang-migrate/migrate/v4/cmd/migrate@latest
       - name: Add Go bin to PATH
         run: echo "$HOME/go/bin" >> $GITHUB_PATH
-        
+
       - name: Run migrations
         run: migrate -path db/migrations -database "postgres://user:pass@localhost:5432/simple_service_test?sslmode=disable" up
 
