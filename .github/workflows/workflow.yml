@@ -52,7 +52,7 @@ jobs:
       - name: Run migrations
         run: |
           migrate \
-            -path file://db/migrations \
+            -path db/migrations \
             -database "${{ env.DATABASE_URL }}" \
             up
 
