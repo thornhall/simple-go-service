@@ -17,7 +17,7 @@ services:
     volumes:
       - .:/app
     environment:
-      DATABASE_URL: "postgres://user:pass@db:5432/simple_service_test?sslmode=disable"
+      DATABASE_URL: "postgres://user:pass@db:5432/simple_service?sslmode=disable"
     depends_on:
       db:
         condition: service_healthy

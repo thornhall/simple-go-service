@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -10,12 +11,7 @@ import (
 )
 
 func TestNewServer_WithRealDB(t *testing.T) {
-	dbURL := "postgres://user:pass@localhost:5433/simple_service?sslmode=disable"
-
-	if err := RunMigrations(dbURL); err != nil {
-		t.Fatalf("migrations failed: %v", err)
-	}
-
+	dbURL := os.Getenv("DATABASE_URL")
 	gin.SetMode(gin.TestMode)
 	server, err := NewServer(dbURL)
 	assert.NoError(t, err)

@@ -33,8 +33,17 @@ dev:  ## needs github.com/cosmtrek/air installed
 
 # ——— Testing & Linting ——————————————————————————————————————
 .PHONY: test         ## Run unit tests
-test:
-	$(GO) test ./... -v
+test-local:
+	docker-compose up -d db
+
+	migrate \
+	  -path db/migrations \
+	  -database "postgres://user:pass@localhost:5432/simple_service?sslmode=disable" \
+	  up
+
+	go test ./... -v
+
+	docker-compose down -v
 
 .PHONY: fmt          ## gofmt check
 fmt:
