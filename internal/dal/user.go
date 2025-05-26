@@ -58,8 +58,8 @@ ORDER BY created_at DESC
 
 func (r *UserRepo) Create(u *model.User) error {
 	const sql = `
-INSERT INTO users (object_id, first_name, last_name, email)
-VALUES (get_random_uuid(), $1, $2, $3)
+INSERT INTO users (first_name, last_name, email)
+VALUES ($1, $2, $3)
 RETURNING object_id, created_at, updated_at
 `
 	row := r.db.QueryRow(context.Background(), sql,

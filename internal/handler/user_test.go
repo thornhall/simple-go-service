@@ -44,7 +44,7 @@ func (r *InMemoryRepo) FindAll() ([]*model.User, error) {
 }
 
 func (r *InMemoryRepo) Create(u *model.User) error {
-	u.Id = len(r.users) + 1
+	u.Id = int64(len(r.users) + 1)
 	u.ObjectId = fmt.Sprintf("uuid-%d", u.Id)
 	now := time.Now().UTC().Truncate(time.Second)
 	u.CreatedAt = now

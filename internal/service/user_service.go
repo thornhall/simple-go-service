@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"github.com/google/uuid"
 	"github.com/thornhall/simple-go-service/internal/model"
 )
 
@@ -50,7 +49,6 @@ func (s *UserService) Create(input model.CreateUserInput) (*model.UserResponse, 
 	}
 
 	u := &model.User{
-		ObjectId:  uuid.New().String(),
 		FirstName: input.FirstName,
 		LastName:  input.LastName,
 		Email:     input.Email,

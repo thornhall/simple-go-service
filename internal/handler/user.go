@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -41,8 +43,11 @@ func (h *UserHandler) Get(ctx *gin.Context) {
 func (h *UserHandler) Create(ctx *gin.Context) {
 	var input model.CreateUserInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		if errors.Is(err, io.EOF) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "request body cannot be empty"})
+		} else {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		}
 	}
 	user, err := h.Svc.Create(input)
 	if err != nil {

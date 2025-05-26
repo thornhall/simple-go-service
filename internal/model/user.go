@@ -5,14 +5,14 @@ import (
 )
 
 type User struct {
-	Id        int       `json:"id"`
-	ObjectId  string    `json:"object_id"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	IsDeleted bool      `json:"is_deleted"`
-	Email     string    `json:"email"`
+	Id        int64     `db:"id"`
+	ObjectId  string    `db:"object_id"`
+	FirstName string    `db:"first_name"`
+	LastName  string    `db:"last_name"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+	IsDeleted bool      `db:"is_deleted"`
+	Email     string    `db:"email"`
 }
 
 type UserResponse struct {
