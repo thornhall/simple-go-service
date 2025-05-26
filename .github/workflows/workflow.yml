@@ -34,6 +34,12 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.24
+      
+      - name: Install golang-migrate CLI
+        run: |
+          go install -tags "postgres" github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+      - name: Add Go bin to PATH
+        run: echo "$HOME/go/bin" >> $GITHUB_PATH
 
       - name: Wait for DB
         run: |
