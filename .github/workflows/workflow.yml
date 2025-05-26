@@ -49,8 +49,11 @@ jobs:
           done
 
       - name: Run migrations
-        run: migrate -path db/migrations \
-                      -database "postgres://user:pass@localhost:5432/simple_service_test?sslmode=disable" up
+        run: |
+          migrate \
+            -path file://db/migrations \
+            -database "${{ env.DATABASE_URL }}" \
+            up
 
       - name: Run tests
         env:
