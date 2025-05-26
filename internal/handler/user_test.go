@@ -129,7 +129,7 @@ func TestUserHandler_CRUD(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	var updated model.User
+	var updated model.UserResponse
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &updated))
 	assert.Equal(t, "Alicia", updated.FirstName)
 	assert.Equal(t, "Smith", updated.LastName)

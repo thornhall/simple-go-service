@@ -36,7 +36,7 @@ func TestUserRepo_FindByID(t *testing.T) {
 			mockSetup: func() {
 				rows := pgxmock.NewRows([]string{
 					"id", "object_id", "first_name", "last_name", "email", "created_at", "updated_at",
-				}).AddRow(1, "uuid-1234", "Alice", "Smith", "a@example.com", now, now)
+				}).AddRow(int64(1), "uuid-1234", "Alice", "Smith", "a@example.com", now, now)
 
 				mockPool.
 					ExpectQuery(`SELECT id, object_id, first_name, last_name, email, created_at, updated_at`).
@@ -44,7 +44,7 @@ func TestUserRepo_FindByID(t *testing.T) {
 					WillReturnRows(rows)
 			},
 			wantUser: &model.User{
-				Id:        1,
+				Id:        int64(1),
 				ObjectId:  "uuid-1234",
 				FirstName: "Alice",
 				LastName:  "Smith",
@@ -109,7 +109,7 @@ func TestUserRepo_FindAll(t *testing.T) {
 				})
 				for i := 1; i <= 3; i++ {
 					rows.AddRow(
-						i,
+						int64(i),
 						"uuid-"+strconv.Itoa(i),
 						"Alice"+strconv.Itoa(i),
 						"Smith",
@@ -250,7 +250,7 @@ func TestUserRepo_Update(t *testing.T) {
 	repo := dal.NewUserRepository(mockPool)
 
 	baseUser := &model.User{
-		Id:        123,
+		Id:        int64(123),
 		ObjectId:  "uuid-123",
 		FirstName: "Old",
 		LastName:  "Name",

@@ -81,8 +81,8 @@ func TestUserService_List(t *testing.T) {
 
 	// — success
 	users := []*model.User{
-		{ObjectId: "1", FirstName: "A", Email: "a@", CreatedAt: now, UpdatedAt: now},
-		{ObjectId: "2", FirstName: "B", Email: "b@", CreatedAt: now, UpdatedAt: now},
+		{ObjectId: uuid.NewString(), FirstName: "A", Email: "a@", CreatedAt: now, UpdatedAt: now},
+		{ObjectId: uuid.NewString(), FirstName: "B", Email: "b@", CreatedAt: now, UpdatedAt: now},
 	}
 	repoOK := &fakeRepo{
 		FindAllFunc: func() ([]*model.User, error) {
@@ -115,6 +115,7 @@ func TestUserService_Create(t *testing.T) {
 	repo := &fakeRepo{
 		CreateFunc: func(u *model.User) error {
 			captured = u
+			captured.ObjectId = uuid.NewString()
 			return nil
 		},
 	}
