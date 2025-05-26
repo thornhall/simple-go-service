@@ -1,10 +1,12 @@
-name: Test and Deploy
+name: Test
 
 on:
   push:
     branches:
       - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   lint-and-test:
