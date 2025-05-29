@@ -1,67 +1,52 @@
 package service
 
 import (
+	"context"
 	"errors"
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/thornhall/simple-go-service/internal/model"
+	"github.com/thornhall/simple-go-service/internal/repo"
 )
 
 var ErrNotFound = errors.New("user not found")
 
-type UserRepository interface {
-	FindByID(id string) (*model.User, error)
-	FindAll() ([]*model.User, error)
-	Create(u *model.User) error
-	Update(u *model.User) error
-	Delete(objectId string) error
-}
-
 type UserService struct {
-	repo UserRepository
+	repo repo.UserRepository
 }
 
-func NewUserService(repo UserRepository) *UserService {
+func NewUserService(repo repo.UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-func (s *UserService) Get(objectId string) (*model.UserResponse, error) {
-	u, err := s.repo.FindByID(objectId)
+func (s *UserService) Get(ctx context.Context, objectId string) (*model.UserResponse, error) {
+	u, err := s.repo.FindByID(ctx, objectId)
 	if err != nil {
 		return nil, ErrNotFound
 	}
 	return ToUserResponse(u), nil
 }
 
-func (s *UserService) List() ([]*model.UserResponse, error) {
-	users, err := s.repo.FindAll()
+func (s *UserService) Create(ctx context.Context, input model.CreateUserInput) (*model.UserResponse, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
-	userResponse := []*model.UserResponse{}
-	for _, user := range users {
-		userResponse = append(userResponse, ToUserResponse(user))
-	}
-	return userResponse, nil
-}
-
-func (s *UserService) Create(input model.CreateUserInput) (*model.UserResponse, error) {
-	if input.FirstName == "" || input.Email == "" {
-		return nil, errors.New("name and email are required")
-	}
-
 	u := &model.User{
 		FirstName: input.FirstName,
 		LastName:  input.LastName,
 		Email:     input.Email,
+		Password:  string(hashed),
 	}
-
-	if err := s.repo.Create(u); err != nil {
+	err = s.repo.Create(ctx, u)
+	if err != nil {
 		return nil, err
 	}
 	return ToUserResponse(u), nil
 }
 
-func (s *UserService) Update(objectId string, input model.UpdateUserInput) (*model.UserResponse, error) {
-	u, err := s.repo.FindByID(objectId)
+func (s *UserService) Update(ctx context.Context, objectId string, input model.UpdateUserInput) (*model.UserResponse, error) {
+	u, err := s.repo.FindByID(ctx, objectId)
 	if err != nil {
 		return nil, ErrNotFound
 	}
@@ -76,14 +61,14 @@ func (s *UserService) Update(objectId string, input model.UpdateUserInput) (*mod
 		u.Email = *input.Email
 	}
 
-	if err := s.repo.Update(u); err != nil {
+	if err := s.repo.Update(ctx, u); err != nil {
 		return nil, err
 	}
 	return ToUserResponse(u), nil
 }
 
-func (s *UserService) Delete(objectId string) error {
-	return s.repo.Delete(objectId)
+func (s *UserService) Delete(ctx context.Context, objectId string) error {
+	return s.repo.Delete(ctx, objectId)
 }
 
 func ToUserResponse(u *model.User) *model.UserResponse {
@@ -92,7 +77,5 @@ func ToUserResponse(u *model.User) *model.UserResponse {
 		FirstName: u.FirstName,
 		LastName:  u.LastName,
 		Email:     u.Email,
-		CreatedAt: u.CreatedAt,
-		UpdatedAt: u.UpdatedAt,
 	}
 }

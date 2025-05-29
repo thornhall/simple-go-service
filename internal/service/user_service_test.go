@@ -2,6 +2,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -14,17 +15,17 @@ import (
 
 type fakeRepo struct {
 	FindByIDFunc func(id string) (*model.User, error)
-	FindAllFunc  func() ([]*model.User, error)
 	CreateFunc   func(u *model.User) error
 	UpdateFunc   func(u *model.User) error
 	DeleteFunc   func(id string) error
 }
 
-func (f *fakeRepo) FindByID(id string) (*model.User, error) { return f.FindByIDFunc(id) }
-func (f *fakeRepo) FindAll() ([]*model.User, error)         { return f.FindAllFunc() }
-func (f *fakeRepo) Create(u *model.User) error              { return f.CreateFunc(u) }
-func (f *fakeRepo) Update(u *model.User) error              { return f.UpdateFunc(u) }
-func (f *fakeRepo) Delete(id string) error                  { return f.DeleteFunc(id) }
+func (f *fakeRepo) FindByID(ctx context.Context, id string) (*model.User, error) {
+	return f.FindByIDFunc(id)
+}
+func (f *fakeRepo) Create(ctx context.Context, u *model.User) error { return f.CreateFunc(u) }
+func (f *fakeRepo) Update(ctx context.Context, u *model.User) error { return f.UpdateFunc(u) }
+func (f *fakeRepo) Delete(ctx context.Context, id string) error     { return f.DeleteFunc(id) }
 
 func TestUserService_Get(t *testing.T) {
 	createdAt := time.Now().Add(-time.Hour)
@@ -46,14 +47,12 @@ func TestUserService_Get(t *testing.T) {
 		},
 	}
 	svc := NewUserService(repo)
-	got, err := svc.Get("abc123")
+	got, err := svc.Get(t.Context(), "abc123")
 	assert.NoError(t, err)
 	assert.Equal(t, want.ObjectId, got.ObjectId)
 	assert.Equal(t, want.FirstName, got.FirstName)
 	assert.Equal(t, want.LastName, got.LastName)
 	assert.Equal(t, want.Email, got.Email)
-	assert.Equal(t, want.CreatedAt, got.CreatedAt)
-	assert.Equal(t, want.UpdatedAt, got.UpdatedAt)
 
 	// — repo error → ErrNotFound
 	repoErr := &fakeRepo{
@@ -62,55 +61,11 @@ func TestUserService_Get(t *testing.T) {
 		},
 	}
 	svc = NewUserService(repoErr)
-	_, err = svc.Get("doesnt-matter")
+	_, err = svc.Get(t.Context(), "doesnt-matter")
 	assert.Equal(t, ErrNotFound, err)
 }
 
-func TestUserService_List(t *testing.T) {
-	now := time.Now()
-
-	// — error path
-	repoErr := &fakeRepo{
-		FindAllFunc: func() ([]*model.User, error) {
-			return nil, errors.New("cannot list")
-		},
-	}
-	svc := NewUserService(repoErr)
-	_, err := svc.List()
-	assert.EqualError(t, err, "cannot list")
-
-	// — success
-	users := []*model.User{
-		{ObjectId: uuid.NewString(), FirstName: "A", Email: "a@", CreatedAt: now, UpdatedAt: now},
-		{ObjectId: uuid.NewString(), FirstName: "B", Email: "b@", CreatedAt: now, UpdatedAt: now},
-	}
-	repoOK := &fakeRepo{
-		FindAllFunc: func() ([]*model.User, error) {
-			return users, nil
-		},
-	}
-	svc = NewUserService(repoOK)
-	resps, err := svc.List()
-	assert.NoError(t, err)
-	assert.Len(t, resps, 2)
-
-	for i, u := range users {
-		assert.Equal(t, u.ObjectId, resps[i].ObjectId)
-		assert.Equal(t, u.FirstName, resps[i].FirstName)
-		assert.Equal(t, u.Email, resps[i].Email)
-		assert.Equal(t, u.CreatedAt, resps[i].CreatedAt)
-		assert.Equal(t, u.UpdatedAt, resps[i].UpdatedAt)
-	}
-}
-
 func TestUserService_Create(t *testing.T) {
-	svc := NewUserService(&fakeRepo{})
-	_, err := svc.Create(model.CreateUserInput{FirstName: "", Email: ""})
-	assert.EqualError(t, err, "name and email are required")
-
-	_, err = svc.Create(model.CreateUserInput{FirstName: "X", Email: ""})
-	assert.EqualError(t, err, "name and email are required")
-
 	var captured *model.User
 	repo := &fakeRepo{
 		CreateFunc: func(u *model.User) error {
@@ -119,13 +74,13 @@ func TestUserService_Create(t *testing.T) {
 			return nil
 		},
 	}
-	svc = NewUserService(repo)
+	svc := NewUserService(repo)
 	in := model.CreateUserInput{
 		FirstName: "Foo",
 		LastName:  "Bar",
 		Email:     "foo@bar.com",
 	}
-	resp, err := svc.Create(in)
+	resp, err := svc.Create(t.Context(), in)
 	assert.NoError(t, err)
 	assert.NotNil(t, captured)
 	assert.Equal(t, in.FirstName, captured.FirstName)
@@ -144,10 +99,9 @@ func TestUserService_Update(t *testing.T) {
 		},
 	}
 	svc := NewUserService(repoNF)
-	_, err := svc.Update("id", model.UpdateUserInput{})
+	_, err := svc.Update(t.Context(), "id", model.UpdateUserInput{})
 	assert.Equal(t, ErrNotFound, err)
 
-	// — partial update
 	existing := &model.User{
 		ObjectId:  "id",
 		FirstName: "Orig",
@@ -167,7 +121,7 @@ func TestUserService_Update(t *testing.T) {
 	svc = NewUserService(repo)
 	newFirst := "NewFirst"
 	newEmail := "new@x.com"
-	resp, err := svc.Update("id", model.UpdateUserInput{
+	resp, err := svc.Update(t.Context(), "id", model.UpdateUserInput{
 		FirstName: &newFirst,
 		Email:     &newEmail,
 	})
@@ -175,7 +129,7 @@ func TestUserService_Update(t *testing.T) {
 
 	assert.Equal(t, "id", resp.ObjectId)
 	assert.Equal(t, "NewFirst", resp.FirstName)
-	assert.Equal(t, "Name", resp.LastName) // unchanged
+	assert.Equal(t, "Name", resp.LastName)
 	assert.Equal(t, "new@x.com", resp.Email)
 	assert.Len(t, []string{updated.FirstName, updated.Email}, 2)
 }
@@ -190,7 +144,7 @@ func TestUserService_Delete(t *testing.T) {
 		},
 	}
 	svc := NewUserService(repoOK)
-	err := svc.Delete("xyz")
+	err := svc.Delete(t.Context(), "xyz")
 	assert.NoError(t, err)
 	assert.Equal(t, "xyz", did)
 
@@ -201,6 +155,6 @@ func TestUserService_Delete(t *testing.T) {
 		},
 	}
 	svc = NewUserService(repoErr)
-	err = svc.Delete("xyz")
+	err = svc.Delete(t.Context(), "xyz")
 	assert.EqualError(t, err, "cannot delete")
 }

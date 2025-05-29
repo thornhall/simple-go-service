@@ -10,7 +10,7 @@ func RegisterUserRoutes(router *gin.Engine, svc *service.UserService) {
 	h := handler.NewUserHandler(svc)
 	users := router.Group("/users")
 	{
-		users.GET("", h.List)
+		//users.GET("", h.List)
 		users.GET("/:object_id", h.Get)
 		users.POST("", h.Create)
 		users.PUT("/:object_id", h.Update)
