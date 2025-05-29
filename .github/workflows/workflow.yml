@@ -12,12 +12,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: postgres://user:pass@localhost:5432/simple_service_test?sslmode=disable
+      DATABASE_URL: postgres://postgres:pass@localhost:5432/simple_service_test?sslmode=disable
     services:
       db:
         image: postgres:15
         env:
-          POSTGRES_USER: user
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: pass
           POSTGRES_DB: simple_service_test
         ports:
@@ -44,19 +44,12 @@ jobs:
 
       - name: Wait for DB
         run: |
-          until pg_isready -h localhost -p 5432 -U user; do
+          until pg_isready -h localhost -p 5432 -U postgres; do
             echo "Waiting for postgres…"
             sleep 1
           done
 
-      - name: Run migrations
-        run: |
-          migrate \
-            -path db/migrations \
-            -database "${{ env.DATABASE_URL }}" \
-            up
-
       - name: Run tests
         env:
-          DATABASE_URL: "postgres://user:pass@localhost:5432/simple_service_test?sslmode=disable"
+          DATABASE_URL: "postgres://postgres:pass@localhost:5432/simple_service_test?sslmode=disable"
         run: go test ./... -v
