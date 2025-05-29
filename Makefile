@@ -33,15 +33,11 @@ dev:  ## needs github.com/cosmtrek/air installed
 
 # ——— Testing & Linting ——————————————————————————————————————
 .PHONY: test         ## Run unit tests
-test-local:
-	docker-compose up -d db
+test:
+	docker compose -f docker-compose.test.yml up -d db
 
-	migrate \
-	  -path db/migrations \
-	  -database "postgres://user:pass@localhost:5432/simple_service?sslmode=disable" \
-	  up
-
-	go test ./... -v
+	DATABASE_URL="postgres://user:pass@localhost:5434/simple_service_test?sslmode=disable"
+	go test ./...
 
 	docker-compose down -v
 
@@ -53,7 +49,7 @@ fmt:
 vet:
 	$(GO) vet ./...
 
-.PHONY: lint         ## run golangci-lint (if you use it)
+.PHONY: lint
 lint:
 	golangci-lint run
 

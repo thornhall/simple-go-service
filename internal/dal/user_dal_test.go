@@ -1,8 +1,8 @@
 package dal_test
 
 import (
+	"context"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/thornhall/simple-go-service/internal/dal"
 	"github.com/thornhall/simple-go-service/internal/model"
@@ -19,10 +20,12 @@ func TestUserRepo_FindByID(t *testing.T) {
 	mockPool, err := pgxmock.NewPool()
 	assert.NoError(t, err)
 	defer mockPool.Close()
-
+	assert.NoError(t, err)
 	repo := dal.NewUserRepository(mockPool)
 	now := time.Now().Truncate(time.Second)
 
+	password, err := bcrypt.GenerateFromPassword([]byte("test_password"), bcrypt.DefaultCost)
+	assert.NoError(t, err)
 	tests := []struct {
 		name      string
 		objectID  string
@@ -35,11 +38,11 @@ func TestUserRepo_FindByID(t *testing.T) {
 			objectID: "uuid-1234",
 			mockSetup: func() {
 				rows := pgxmock.NewRows([]string{
-					"id", "object_id", "first_name", "last_name", "email", "created_at", "updated_at",
-				}).AddRow(int64(1), "uuid-1234", "Alice", "Smith", "a@example.com", now, now)
+					"id", "object_id", "first_name", "last_name", "email", "created_at", "updated_at", "password_hash",
+				}).AddRow(int64(1), "uuid-1234", "Alice", "Smith", "a@example.com", now, now, string(password))
 
 				mockPool.
-					ExpectQuery(`SELECT id, object_id, first_name, last_name, email, created_at, updated_at`).
+					ExpectQuery(`SELECT id, object_id, first_name, last_name, email, created_at, updated_at, password_hash`).
 					WithArgs("uuid-1234").
 					WillReturnRows(rows)
 			},
@@ -51,6 +54,7 @@ func TestUserRepo_FindByID(t *testing.T) {
 				Email:     "a@example.com",
 				CreatedAt: now,
 				UpdatedAt: now,
+				Password:  string(password),
 			},
 			wantErr: false,
 		},
@@ -72,7 +76,7 @@ func TestUserRepo_FindByID(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mockSetup()
 
-			u, err := repo.FindByID(tt.objectID)
+			u, err := repo.FindByID(context.Background(), tt.objectID)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, u)
@@ -85,100 +89,13 @@ func TestUserRepo_FindByID(t *testing.T) {
 	}
 }
 
-func TestUserRepo_FindAll(t *testing.T) {
-	mockPool, err := pgxmock.NewPool()
-	assert.NoError(t, err)
-	defer mockPool.Close()
-
-	repo := dal.NewUserRepository(mockPool)
-
-	now := time.Now().Truncate(time.Second)
-
-	tests := []struct {
-		name      string
-		mockSetup func()
-		wantUsers []*model.User
-		wantErr   bool
-	}{
-		{
-			name: "multiple rows",
-			mockSetup: func() {
-				rows := pgxmock.NewRows([]string{
-					"id", "object_id", "first_name", "last_name",
-					"email", "created_at", "updated_at",
-				})
-				for i := 1; i <= 3; i++ {
-					rows.AddRow(
-						int64(i),
-						"uuid-"+strconv.Itoa(i),
-						"Alice"+strconv.Itoa(i),
-						"Smith",
-						"a"+strconv.Itoa(i)+"@example.com",
-						now,
-						now,
-					)
-				}
-				mockPool.
-					ExpectQuery(`SELECT id, object_id, first_name, last_name, email, created_at, updated_at`).
-					WillReturnRows(rows)
-			},
-			wantUsers: []*model.User{
-				{Id: 1, ObjectId: "uuid-1", FirstName: "Alice1", LastName: "Smith", Email: "a1@example.com", CreatedAt: now, UpdatedAt: now},
-				{Id: 2, ObjectId: "uuid-2", FirstName: "Alice2", LastName: "Smith", Email: "a2@example.com", CreatedAt: now, UpdatedAt: now},
-				{Id: 3, ObjectId: "uuid-3", FirstName: "Alice3", LastName: "Smith", Email: "a3@example.com", CreatedAt: now, UpdatedAt: now},
-			},
-			wantErr: false,
-		},
-		{
-			name: "empty result",
-			mockSetup: func() {
-				rows := pgxmock.NewRows([]string{
-					"id", "object_id", "first_name", "last_name",
-					"email", "created_at", "updated_at",
-				})
-				mockPool.
-					ExpectQuery(`SELECT id, object_id, first_name, last_name, email, created_at, updated_at`).
-					WillReturnRows(rows)
-			},
-			wantUsers: []*model.User(nil),
-			wantErr:   false,
-		},
-		{
-			name: "query error",
-			mockSetup: func() {
-				mockPool.
-					ExpectQuery(`SELECT id, object_id, first_name, last_name, email, created_at, updated_at`).
-					WillReturnError(fmt.Errorf("db is down"))
-			},
-			wantUsers: nil,
-			wantErr:   true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.mockSetup()
-			users, err := repo.FindAll()
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Nil(t, users)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.wantUsers, users)
-			}
-
-			assert.NoError(t, mockPool.ExpectationsWereMet())
-		})
-	}
-}
-
 func TestUserRepo_Create(t *testing.T) {
 	mockPool, err := pgxmock.NewPool()
 	assert.NoError(t, err)
-	defer mockPool.Close()
 
 	repo := dal.NewUserRepository(mockPool)
-
+	password, err := bcrypt.GenerateFromPassword([]byte("test_password"), bcrypt.DefaultCost)
+	assert.NoError(t, err)
 	now := time.Now().Truncate(time.Second)
 
 	tests := []struct {
@@ -196,7 +113,7 @@ func TestUserRepo_Create(t *testing.T) {
 
 				mockPool.
 					ExpectQuery(`INSERT INTO users.*RETURNING object_id, created_at, updated_at`).
-					WithArgs(inputUser.FirstName, inputUser.LastName, inputUser.Email).
+					WithArgs(inputUser.FirstName, inputUser.LastName, inputUser.Email, inputUser.Password).
 					WillReturnRows(rows)
 			},
 			wantErr: false,
@@ -206,7 +123,7 @@ func TestUserRepo_Create(t *testing.T) {
 			mockSetup: func(objectId string, inputUser *model.User) {
 				mockPool.
 					ExpectQuery(`INSERT INTO users.*RETURNING object_id, created_at, updated_at`).
-					WithArgs(inputUser.FirstName, inputUser.LastName, inputUser.Email).
+					WithArgs(inputUser.FirstName, inputUser.LastName, inputUser.Email, inputUser.Password).
 					WillReturnError(fmt.Errorf("insert failed"))
 			},
 			wantErr: true,
@@ -220,12 +137,13 @@ func TestUserRepo_Create(t *testing.T) {
 				FirstName: "Alice",
 				LastName:  "Smith",
 				Email:     "alice@example.com",
+				Password:  string(password),
 			}
 
 			testObjectId := uuid.New().String()
 			tt.mockSetup(testObjectId, inputUser)
 
-			err := repo.Create(inputUser)
+			err := repo.Create(context.Background(), inputUser)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Zero(t, inputUser.ObjectId)
@@ -245,7 +163,6 @@ func TestUserRepo_Create(t *testing.T) {
 func TestUserRepo_Update(t *testing.T) {
 	mockPool, err := pgxmock.NewPool()
 	assert.NoError(t, err)
-	defer mockPool.Close()
 
 	repo := dal.NewUserRepository(mockPool)
 
@@ -302,7 +219,7 @@ func TestUserRepo_Update(t *testing.T) {
 			u := *baseUser
 			tt.mockSetup(&u)
 
-			err := repo.Update(&u)
+			err := repo.Update(context.Background(), &u)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errMsg != "" {
@@ -320,7 +237,6 @@ func TestUserRepo_Update(t *testing.T) {
 func TestUserRepo_Delete(t *testing.T) {
 	mockPool, err := pgxmock.NewPool()
 	assert.NoError(t, err)
-	defer mockPool.Close()
 
 	repo := dal.NewUserRepository(mockPool)
 
@@ -372,7 +288,7 @@ func TestUserRepo_Delete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mockSetup()
 
-			err := repo.Delete(tt.id)
+			err := repo.Delete(context.Background(), tt.id)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errMsg != "" {

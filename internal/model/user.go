@@ -13,15 +13,23 @@ type User struct {
 	UpdatedAt time.Time `db:"updated_at"`
 	IsDeleted bool      `db:"is_deleted"`
 	Email     string    `db:"email"`
+	Password  string    `db:"password_hash"`
+}
+
+type UserCreateResponse struct {
+	ObjectId     string `json:"object_id"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	Email        string `json:"email"`
+	ClientId     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
 }
 
 type UserResponse struct {
-	ObjectId  string    `json:"object_id"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ObjectId  string `json:"object_id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
 }
 
 // POST
@@ -29,6 +37,7 @@ type CreateUserInput struct {
 	FirstName string `json:"first_name"  binding:"required"`
 	LastName  string `json:"last_name"`
 	Email     string `json:"email" binding:"required,email"`
+	Password  string `json:"password" binding:"required,min=8,max=64"`
 }
 
 // PUT

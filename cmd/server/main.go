@@ -10,8 +10,12 @@ func main() {
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL is required")
 	}
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET is required")
+	}
 
-	engine, err := NewServer(dbURL)
+	engine, err := NewServer(dbURL, jwtSecret)
 	if err != nil {
 		log.Fatalf("failed to build server: %v", err)
 	}
