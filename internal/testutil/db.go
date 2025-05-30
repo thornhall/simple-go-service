@@ -44,7 +44,6 @@ func StartPostgresContainer(t *testing.T) (dsn string, pgC testcontainers.Contai
 		host, port.Port(),
 	)
 
-	// run migrations
 	runMigrations(t, dsn)
 
 	return dsn, pgC
@@ -59,7 +58,7 @@ func runMigrations(t *testing.T, dsn string) {
 	require.NoError(t, err)
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://../../db/migrations", // adjust if needed
+		"file://../../db/migrations",
 		"postgres",
 		driver,
 	)
@@ -68,4 +67,5 @@ func runMigrations(t *testing.T, dsn string) {
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		t.Fatalf("migrate up: %v", err)
 	}
+	sqlDB.Close()
 }

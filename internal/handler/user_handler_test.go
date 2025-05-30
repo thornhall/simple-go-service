@@ -32,6 +32,7 @@ func TestMain(m *testing.M) {
 	testcontainers.CleanupContainer(t, container, testcontainers.StopContext(context.Background()))
 	os.Exit(code)
 }
+
 func setupRouter(db dal.Conn) *gin.Engine {
 	repo := dal.NewUserRepository(db)
 	svc := service.NewUserService(repo)
@@ -52,6 +53,8 @@ func TestUserHandler_CRUD(t *testing.T) {
 	maxConns := 25
 	maxConnIdleTime := 5 * time.Minute
 	db, err := dal.NewPostgresDB(dbURL, maxConns, maxConnIdleTime)
+	pool := db.GetPool()
+	defer pool.Close()
 	assert.NoError(t, err)
 
 	router := setupRouter(db)

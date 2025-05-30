@@ -16,6 +16,8 @@ func NewServer(dbURL string, jwtSecretStr string) (*gin.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
+	pool := db.GetPool()
+	defer pool.Close()
 	repo := dal.NewUserRepository(db)
 	userSvc := service.NewUserService(repo)
 
