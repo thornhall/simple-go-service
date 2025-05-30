@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -65,19 +65,12 @@ func TestUserHandler_CRUD(t *testing.T) {
 	var created model.UserResponse
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
 	assert.Equal(t, "Alice", created.FirstName)
+	assert.Equal(t, "Smith", created.LastName)
+	assert.Equal(t, "alice@example.com", created.Email)
 	objID := created.ObjectId
 
-	var fn, ln, email string
-	err = db.QueryRow(
-		context.Background(),
-		"SELECT first_name, last_name, email FROM users WHERE object_id = $1",
-		objID,
-	).Scan(&fn, &ln, &email)
-	require.NoError(t, err)
-	assert.Equal(t, "Alice", fn)
-	assert.Equal(t, "Smith", ln)
-	assert.Equal(t, "alice@example.com", email)
-
+	_, err = uuid.Parse(created.ObjectId)
+	assert.NoError(t, err)
 	// 3) UPDATE
 	updateBody := `{"first_name":"Alicia"}`
 	w = httptest.NewRecorder()

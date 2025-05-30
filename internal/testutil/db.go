@@ -17,7 +17,7 @@ import (
 )
 
 // StartPostgresContainer spins up Postgres, runs migrations, and
-// returns a DSN and a cleanup function.
+// returns a DSN and a container which the caller is expected to terminate when finished.
 func StartPostgresContainer(t *testing.T) (dsn string, pgC testcontainers.Container) {
 	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
