@@ -23,11 +23,12 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	dsn, cleanup := testutil.StartPostgresContainer(&testing.T{})
-	defer cleanup()
+	dsn, container := testutil.StartPostgresContainer(&testing.T{})
 	os.Setenv("DATABASE_URL", dsn)
 	os.Setenv("JWT_SECRET", "test_secret")
-	os.Exit(m.Run())
+	code := m.Run()
+	container.Terminate(context.Background())
+	os.Exit(code)
 }
 
 func setupRouter(db dal.Conn) *gin.Engine {

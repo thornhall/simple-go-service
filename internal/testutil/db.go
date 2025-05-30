@@ -18,7 +18,7 @@ import (
 
 // StartPostgresContainer spins up Postgres, runs migrations, and
 // returns a DSN and a cleanup function.
-func StartPostgresContainer(t *testing.T) (dsn string, cleanup func()) {
+func StartPostgresContainer(t *testing.T) (dsn string, pgC testcontainers.Container) {
 	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
 		Image: "postgres:15-alpine",
@@ -37,10 +37,6 @@ func StartPostgresContainer(t *testing.T) (dsn string, cleanup func()) {
 	})
 	require.NoError(t, err)
 
-	cleanup = func() {
-		pgC.Terminate(ctx)
-	}
-
 	host, _ := pgC.Host(ctx)
 	port, _ := pgC.MappedPort(ctx, "5432")
 	dsn = fmt.Sprintf(
@@ -51,7 +47,7 @@ func StartPostgresContainer(t *testing.T) (dsn string, cleanup func()) {
 	// run migrations
 	runMigrations(t, dsn)
 
-	return dsn, cleanup
+	return dsn, pgC
 }
 
 func runMigrations(t *testing.T, dsn string) {
