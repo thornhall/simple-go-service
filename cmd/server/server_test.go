@@ -35,12 +35,13 @@ func TestNewServer_WithRealDB(t *testing.T) {
 	assert.NotZero(t, jwtSecret)
 	gin.SetMode(gin.TestMode)
 	server, err := NewServer(dbURL, jwtSecret)
+	defer server.CloseDB()
 	assert.NoError(t, err)
 
 	createBody := `{"first_name":"S","last_name":"Smith","email":"alices@example.com","password":"test_pass"}`
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/users", bytes.NewBufferString(createBody))
-	server.ServeHTTP(w, req)
+	server.engine.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 	var userResponse model.UserResponse
@@ -54,5 +55,5 @@ func TestNewServer_WithRealDB(t *testing.T) {
 
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest("POST", "/users/"+userResponse.ObjectId, nil)
-	server.ServeHTTP(w, req)
+	server.engine.ServeHTTP(w, req)
 }
