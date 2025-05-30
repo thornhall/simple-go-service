@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
 
 	"github.com/thornhall/simple-go-service/internal/dal"
 	"github.com/thornhall/simple-go-service/internal/handler"
@@ -23,14 +24,14 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	dsn, container := testutil.StartPostgresContainer(&testing.T{})
+	t := &testing.T{}
+	dsn, container := testutil.StartPostgresContainer(t)
 	os.Setenv("DATABASE_URL", dsn)
 	os.Setenv("JWT_SECRET", "test_secret")
 	code := m.Run()
-	container.Terminate(context.Background())
+	testcontainers.CleanupContainer(t, container, testcontainers.StopContext(context.Background()))
 	os.Exit(code)
 }
-
 func setupRouter(db dal.Conn) *gin.Engine {
 	repo := dal.NewUserRepository(db)
 	svc := service.NewUserService(repo)

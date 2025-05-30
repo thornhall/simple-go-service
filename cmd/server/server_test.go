@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,21 +12,23 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/testcontainers/testcontainers-go"
+
 	"github.com/thornhall/simple-go-service/internal/model"
-	//"github.com/thornhall/simple-go-service/internal/testutil"
+	"github.com/thornhall/simple-go-service/internal/testutil"
 )
 
-// func TestMain(m *testing.M) {
-// 	dsn, container := testutil.StartPostgresContainer(&testing.T{})
-// 	os.Setenv("DATABASE_URL", dsn)
-// 	os.Setenv("JWT_SECRET", "test_secret")
-// 	code := m.Run()
-// 	container.Terminate(context.Background())
-// 	os.Exit(code)
-// }
+func TestMain(m *testing.M) {
+	t := &testing.T{}
+	dsn, container := testutil.StartPostgresContainer(t)
+	os.Setenv("DATABASE_URL", dsn)
+	os.Setenv("JWT_SECRET", "test_secret")
+	code := m.Run()
+	testcontainers.CleanupContainer(t, container, testcontainers.StopContext(context.Background()))
+	os.Exit(code)
+}
 
 func TestNewServer_WithRealDB(t *testing.T) {
-	return
 	dbURL := os.Getenv("DATABASE_URL")
 	jwtSecret := os.Getenv("JWT_SECRET")
 	assert.NotZero(t, dbURL)
