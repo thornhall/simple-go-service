@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,16 +12,20 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/testcontainers/testcontainers-go"
+
 	"github.com/thornhall/simple-go-service/internal/model"
 	"github.com/thornhall/simple-go-service/internal/testutil"
 )
 
 func TestMain(m *testing.M) {
-	dsn, cleanup := testutil.StartPostgresContainer(&testing.T{})
-	defer cleanup()
+	t := &testing.T{}
+	dsn, container := testutil.StartPostgresContainer(t)
 	os.Setenv("DATABASE_URL", dsn)
 	os.Setenv("JWT_SECRET", "test_secret")
-	os.Exit(m.Run())
+	code := m.Run()
+	testcontainers.CleanupContainer(t, container, testcontainers.StopContext(context.Background()))
+	os.Exit(code)
 }
 
 func TestNewServer_WithRealDB(t *testing.T) {
@@ -30,12 +35,13 @@ func TestNewServer_WithRealDB(t *testing.T) {
 	assert.NotZero(t, jwtSecret)
 	gin.SetMode(gin.TestMode)
 	server, err := NewServer(dbURL, jwtSecret)
+	defer server.CloseDB()
 	assert.NoError(t, err)
 
 	createBody := `{"first_name":"S","last_name":"Smith","email":"alices@example.com","password":"test_pass"}`
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/users", bytes.NewBufferString(createBody))
-	server.ServeHTTP(w, req)
+	server.engine.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 	var userResponse model.UserResponse
@@ -49,5 +55,5 @@ func TestNewServer_WithRealDB(t *testing.T) {
 
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest("POST", "/users/"+userResponse.ObjectId, nil)
-	server.ServeHTTP(w, req)
+	server.engine.ServeHTTP(w, req)
 }
