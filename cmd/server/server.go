@@ -4,7 +4,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/thornhall/simple-go-service/internal/dal"
+	"github.com/thornhall/simple-go-service/internal/middleware/auth"
 	"github.com/thornhall/simple-go-service/internal/router"
 	"github.com/thornhall/simple-go-service/internal/service"
 )
@@ -31,8 +33,8 @@ func NewServer(dbURL string, jwtSecretStr string) (*Server, error) {
 
 	r := gin.New()
 
-	//authMiddleware := r.Group("/")
-	//authMiddleware.Use(auth.JWTAuth(userSvc, []byte(jwtSecretStr)))
+	authMiddleware := r.Group("/")
+	authMiddleware.Use(auth.JWTAuth([]byte(jwtSecretStr)))
 
 	r.Use(gin.Logger(), gin.Recovery())
 	router.RegisterUserRoutes(r, userSvc)

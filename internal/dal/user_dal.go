@@ -16,7 +16,22 @@ func NewUserRepository(conn Conn) repo.UserRepository {
 	return &UserRepo{conn: conn}
 }
 
-func (r *UserRepo) FindByID(ctx context.Context, objectId string) (*model.User, error) {
+func (r *UserRepo) FindById(ctx context.Context, id int64) (*model.User, error) {
+	const sql = `
+SELECT id, object_id, first_name, last_name, email, created_at, updated_at, password_hash
+  FROM users
+WHERE id = $1
+`
+	u := &model.User{}
+	err := r.conn.QueryRow(context.Background(), sql, id).
+		Scan(&u.Id, &u.ObjectId, &u.FirstName, &u.LastName, &u.Email, &u.CreatedAt, &u.UpdatedAt, &u.Password)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+func (r *UserRepo) FindByObjectId(ctx context.Context, objectId string) (*model.User, error) {
 	const sql = `
 SELECT id, object_id, first_name, last_name, email, created_at, updated_at, password_hash
   FROM users

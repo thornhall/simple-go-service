@@ -1,0 +1,680 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>server: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/thornhall/simple-go-service/cmd/server/main.go (0.0%)</option>
+				
+				<option value="file1">github.com/thornhall/simple-go-service/cmd/server/migrations.go (0.0%)</option>
+				
+				<option value="file2">github.com/thornhall/simple-go-service/cmd/server/server.go (90.9%)</option>
+				
+				<option value="file3">github.com/thornhall/simple-go-service/internal/dal/database.go (62.5%)</option>
+				
+				<option value="file4">github.com/thornhall/simple-go-service/internal/dal/txn.go (0.0%)</option>
+				
+				<option value="file5">github.com/thornhall/simple-go-service/internal/dal/user_dal.go (100.0%)</option>
+				
+				<option value="file6">github.com/thornhall/simple-go-service/internal/handler/user_handler.go (53.7%)</option>
+				
+				<option value="file7">github.com/thornhall/simple-go-service/internal/router/router.go (100.0%)</option>
+				
+				<option value="file8">github.com/thornhall/simple-go-service/internal/service/user_service.go (85.2%)</option>
+				
+				<option value="file9">github.com/thornhall/simple-go-service/internal/testutil/db.go (90.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "log"
+        "os"
+)
+
+func main() <span class="cov0" title="0">{
+        dbURL := os.Getenv("DATABASE_URL")
+        if dbURL == "" </span><span class="cov0" title="0">{
+                log.Fatal("DATABASE_URL is required")
+        }</span>
+        <span class="cov0" title="0">jwtSecret := os.Getenv("JWT_SECRET")
+        if jwtSecret == "" </span><span class="cov0" title="0">{
+                log.Fatal("JWT_SECRET is required")
+        }</span>
+
+        <span class="cov0" title="0">server, err := NewServer(dbURL, jwtSecret)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("failed to build server: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">log.Println("listening on :8080")
+        server.engine.Run("</span>:8080")
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package main
+
+import (
+        "path/filepath"
+
+        "github.com/golang-migrate/migrate/v4"
+        _ "github.com/golang-migrate/migrate/v4/database/postgres"
+        _ "github.com/golang-migrate/migrate/v4/source/file"
+)
+
+func RunMigrations(dbURL string) error <span class="cov0" title="0">{
+        migrationsDir := filepath.Join("../..", "db", "migrations")
+        absPath, err := filepath.Abs(migrationsDir)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">m, err := migrate.New(
+                "file://"+absPath,
+                dbURL,
+        )
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">if err := m.Up(); err != nil &amp;&amp; err != migrate.ErrNoChange </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package main
+
+import (
+        "time"
+
+        "github.com/gin-gonic/gin"
+
+        "github.com/thornhall/simple-go-service/internal/dal"
+        "github.com/thornhall/simple-go-service/internal/middleware/auth"
+        "github.com/thornhall/simple-go-service/internal/router"
+        "github.com/thornhall/simple-go-service/internal/service"
+)
+
+type Server struct {
+        db     dal.DB
+        engine *gin.En</span><span class="cov0" title="0">gine
+}
+
+</span>f<span class="cov8" title="1">unc (s *Server) CloseDB() error {
+        s.db.GetPool().Close()
+        return nil
+}
+
+func NewServer(dbURL string, jwtSecretStr string) (*Server, error) {
+        maxConns := 25
+        maxConnIdleTime := 5 * time.Minute
+        db, err := dal.NewPostgresDB(dbURL, maxConns, maxConnIdleTime)
+        if err != nil {
+                return nil, err
+        }
+</span>        repo := dal.NewUserRepository(db)
+        userSvc := service.NewUserService(repo)
+
+        r := gin.New()
+
+        authMiddleware := r.Group("/")
+        authMiddleware.Use(auth.JWTAuth([]byte(jwtSecretStr)))
+
+        r.Use(gin.Logger(), gin.Recovery())
+        router.RegisterUserRoutes(r, userSvc)
+
+        server := &amp;Server{
+                db:     db,
+                engine: r,
+        }
+        return server, nil
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package dal
+
+import (
+        "context"
+        "time"
+
+        "github.com/jackc/pgconn"
+        "github.com/jackc/pgx/v4"
+        "github.com/jackc/pgx/v4/pgxpool"
+)
+
+type Conn interface {
+        QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+        Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
+        Exec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error)
+}
+
+type Tx interface {
+        Conn
+        Commit(ctx context.Context) error
+        Rollback(ctx context.Context) error
+}
+
+type DB interface {
+        Conn
+        Begin(ctx context.Context) (Tx, error)
+        GetPool() *pgxpool.Pool
+}
+
+type pgxDB struct {
+        *pgxpool.Pool
+}
+
+func NewPostgresDB(connString string, maxConns int, maxConnIdleTime time.Duration) (DB, error) {
+        pool, err := pgxpool.Connect(context.Background(), connString)
+        pool.Config().MaxConnIdleTime = maxConnIdleTime
+        pool.Config().</span><span class="cov0" title="0">MaxConns = int32(maxConns)
+        if err != nil {
+                </span>return nil, err
+        <span class="cov8" title="1">}
+</span>        return &amp;pgxDB{pool}, nil
+}
+
+func (p *pgxDB) Begin(ctx context.Context) (Tx, error) {
+        </span>return p.Pool.Begin(ctx)
+}
+
+func (p *pgxDB) Config() *pgxpool.Config {
+        </span>return p.Pool.Config()
+}
+
+func (p *pgxDB) GetPool() *pgxpool.Pool {
+        return p.Pool
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package dal
+
+import (
+        "context"
+
+        "github.com/thornhall/simple-go-service/internal/model"
+)
+
+// Run a group of operations inside of a Transaction. If any errors are returned, the transaction is rolled back.
+func RunInTx(ctx context.Context, db DB, fn func(ctx context.Context, conn Conn) (*model.UserResponse, error)) (*model.UserResponse, error) <span class="cov0" title="0">{
+        tx, err := db.Begin(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">defer tx.Rollback(ctx)
+
+        res, err := fn(ctx, tx)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">return res, tx.Commit(ctx)</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package dal
+
+import (
+        "context"
+        "fmt"
+
+        "github.com/thornhall/simple-go-service/internal/model"
+        "github.com/thornhall/simple-go-service/internal/repo"
+)
+
+type UserRepo struct {
+        conn Conn
+}
+
+func NewUserRepository(conn Conn) repo.UserRepository <span class="cov8" title="1">{
+        return &amp;UserRepo{conn: conn}
+}</span>
+
+func (r *UserRepo) FindById(ctx context.Context, id int64) (*model.User, error) {
+        const sql = `
+SELECT id, object_id, first_name, last_name, email, created_at, updated_at, password_hash
+  FROM users
+WHERE id = $1
+`
+        u := &amp;model.User{}
+        err := r.conn.QueryRow(context.Background(), sql, id).
+                Scan(&amp;u.Id, &amp;u.ObjectId, &amp;u.FirstName, &amp;u.LastName, &amp;u.Email, &amp;u.CreatedAt, &amp;u.UpdatedAt, &amp;u.Password)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return u, nil</span>
+}
+
+func (r *UserRepo) FindByObjectId(ctx context.Context, objectId stri<span class="cov8" title="1">ng) (*model.User, error) {
+        const sql = `
+SELECT id, object_id, first_name, last_name, email, created_at, updated_at, password_hash
+  FROM users
+WHERE object_id = $1
+`
+        u := &amp;model.User{}
+        err := r.conn.QueryRow(context.Background(), sql, objectId).
+                Scan(&amp;u.Id, &amp;u.ObjectId, &amp;u.FirstName, &amp;u.LastName, &amp;u.Email, &amp;u.CreatedAt, &amp;u.UpdatedAt, &amp;u.Password)
+        if err != nil {
+        </span>        return nil, err
+        }
+        return u, nil
+}
+
+func (r *UserRepo) Create(ctx context.Context, u *model.User) error {
+        const sql = `
+INSERT INTO users (first_name, last_name, email, password_hash)
+VALUES ($1, $2, $3, $4)
+RETURNING object_id, created_at, updated_at
+`
+        row := r.conn.QueryRow(context.Background(), sql,
+                u.FirstName, u.LastName, u.Email, u.Password,
+        )
+        return row.Sca</span><span class="cov8" title="1">n(&amp;u.ObjectId, &amp;u.CreatedAt, &amp;u.UpdatedAt)
+}
+
+</span>f<span class="cov8" title="1">unc (r *UserRepo) Update(ct</span><span class="cov8" title="1">x context.Context, u *model.User) error {
+        const sql = `
+UP</span>DATE users
+ <span class="cov8" title="1">  SET firs</span>t_name = $1,
+       last_name  = $2,
+       email      = $3,
+       updated_at = now()
+ WHERE id = $4
+`
+        cmd, err := r.</span><span class="cov8" title="1">conn.Exec(context.Background(), sql,
+                u.FirstName, u.LastName, u.Email, u.Id,
+        )</span>
+        <span class="cov8" title="1">if err != nil {
+</span>                return err
+        }</span>
+        <span class="cov8" title="1">if cmd.Row</span>sAffected() != 1 {
+                return fmt.Errorf("no row updated for object_id=%s", u.ObjectId)
+        }
+        return nil
+}
+
+func (r *UserRepo) Delete(ctx context.Context, objectId string) error {
+        const sql = `DELETE FROM users WHERE object_id = $1`
+        cmd, err := r.conn.Exec(context.Background(), sql, objectId)
+        if err != nil {
+                return err
+        }
+        if cmd.RowsAffected() != 1 {
+                return fmt.Errorf("no row deleted for object_id=%s", objectId)
+        }
+        return nil
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package handler
+
+import (
+        "errors"
+        "io"
+        "net/http"
+
+        "github.com/gin-gonic/gin"
+        //"github.com/thornhall/simple-go-service/internal/middleware/auth"
+        "github.com/thornhall/simple-go-service/internal/model"
+        "github.com/thornhall/simple-go-service/internal/service"
+)
+
+type UserHandler struct {
+        Svc *service.UserService
+}
+
+func NewUserHandler(svc *service.UserService) *UserHandler <span class="cov8" title="1">{
+        return &amp;UserHandler{Svc: svc}
+}</span>
+
+func (h *UserHandler) Get(ctx *gin.Context) <span class="cov8" title="1">{
+        objectId := ctx.Param("object_id")
+        user, err := h.Svc.Get(ctx, objectId)
+        if err == service.ErrNotFound </span><span class="cov8" title="1">{
+                ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+                return
+        }</span> else<span class="cov0" title="0"> if err != nil </span><span class="cov0" title="0">{
+                ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }</span>
+        <span class="cov0" title="0">ctx.JSON(http.StatusOK, user)</span>
+}
+
+func (h *UserHandler) Create(ctx *gin.Context) <span class="cov8" title="1">{
+        var input model.CreateUserInput
+        if err := ctx.ShouldBindJSON(&amp;input); err != nil </span><span class="cov0" title="0">{
+                if errors.Is(err, io.EOF) </span><span class="cov0" title="0">{
+                        ctx.JSON(http.StatusBadRequest, gin.H{"error": "request body cannot be empty"})
+                        return
+                }</span> else<span class="cov0" title="0"> {
+                        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+                        return
+                }</span>
+        }
+        <span class="cov8" title="1">user, jwt, err := h.Svc.Create(ctx, input)
+        if err != nil </span><span class="cov0" title="0">{
+                ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Encountered an error while creating a new user"})
+                return
+        }</span>
+
+        resp := &amp;model.CreateUserResponse{
+                UserResponse: user,
+                JWT:          jwt,
+        }
+        ctx.JSON(http.StatusCreated, resp)
+}
+
+</span>func (h *UserHandler) Update(ctx *gin.Context) {
+        objectId := ctx.Param("object_id")
+        var input model.UpdateUserInput
+        if err := ctx.ShouldBindJSON(&amp;input); err != nil {
+                ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+                return
+</span>        }
+        user, err := h.Svc.Update(ctx, objectId, input)
+        i</span>f err == service.ErrNotFound {
+        <span class="cov8" title="1">        ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+                return
+</span>        } else if err != nil {
+                ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                </span>retur<span class="cov8" title="1">n
+</span>        }
+        ctx.JSON(http.StatusOK, user)
+}
+</span>
+</span>func (h *UserHandler) Delete(ctx *gin.Context) {
+        objectId := ctx.Param("object_id")
+        if err := h.Svc.Delete(ctx, objectId); err == <span class="cov8" title="1">service.ErrNotFound {
+                ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+        } else if err != nil {
+</span>                ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        }</span> else<span class="cov8" title="1"> {
+</span>                ctx.Status(http.StatusNoContent)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package router
+
+import (
+        "github.com/gin-gonic/gin"
+        "github.com/thornhall/simple-go-service/internal/handler"
+        "github.com/thornhall/simple-go-service/internal/service"
+)
+
+func RegisterUserRoutes(router *gin.Engine, svc *service.UserService) <span class="cov8" title="1">{
+        h := handler.NewUserHandler(svc)
+        users := router.Group("/users")
+        </span><span class="cov8" title="1">{
+                users.GET("/:object_id", h.Get)
+                users.POST("", h.Create)
+                users.PUT("/:object_id", h.Update)
+                users.DELETE("/:object_id", h.Delete)
+        }
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package service
+
+import (
+        "context"
+        "errors"
+
+        "golang.org/x/crypto/bcrypt"
+
+        "github.com/thornhall/simple-go-service/internal/middleware/auth"
+        "github.com/thornhall/simple-go-service/internal/model"
+        "github.com/thornhall/simple-go-service/internal/repo"
+)
+
+var ErrNotFound = errors.New("user not found")
+
+type UserService struct {
+        repo repo.UserRepository
+}
+
+f</span>unc NewUserService(repo repo.UserRepository) *UserService {
+        return &amp;UserService{repo: repo}
+}
+
+func (s *UserSe</span><span class="cov8" title="1">rvice) GetByID(ctx context.Context, id int64) (*model.UserPasswordHash, error) {
+
+        u</span>, err := s.repo.FindById(ctx, id)
+        <span class="cov8" title="1">if err != nil {
+</span>                return nil, err
+        }
+        return &amp;model.UserPasswordHash{PasswordHash: u.Password}, nil
+}
+
+</span>func (s *UserService) Get(ctx context.Context, objectId string) (*model.UserResponse, error) {
+        u</span>, err := s.repo.FindByObjectId(ctx, objectId)
+        <span class="cov8" title="1">if err != nil {
+                return nil, ErrNotFound
+        }
+        return ToUserResponse(u), nil
+}
+
+func (s *UserService) Create(ctx context.Context, input model.CreateUserInput) (*model.UserResponse, string, error) {
+        hashed, err :=</span><span class="cov0" title="0"> bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+        if err != nil {
+                </span>return nil, "", err
+        <span class="cov8" title="1">}
+</span>        u := &amp;model.User{
+                FirstName: input.FirstName,
+                LastName:  input.LastName,
+                Email:     input.Email,
+                Password:  st</span><span class="cov8" title="1">ring(hashed),
+        }
+
+</span>        err = s.repo.Create(ctx, u)
+        <span class="cov8" title="1">if err != nil {
+</span>                return nil, "", err
+        }</span>
+        <span class="cov8" title="1">signedJwt, err := auth.Is</span><span class="cov0" title="0">sueJWT(u.Id, u.Email)
+        if err != nil {
+                </span>return nil, "", err
+        <span class="cov8" title="1">}
+</span>        return ToUserResponse(u), signedJwt, nil
+}
+</span>
+f<span class="cov8" title="1">unc (s *UserService) Update(ctx context.Cont</span><span class="cov0" title="0">ext, objectId string, input model.UpdateUserInput) (*model.UserResponse, error) {
+        u, err := s.repo.FindByObjectId(ctx, objectId)
+        i</span>f err != nil {
+        <span class="cov8" title="1">        return nil, ErrNotFound
+</span>        }
+
+        if input.FirstName != nil {
+                u.FirstName = *input.FirstName
+        </span>}
+        if input.LastName != nil {
+                u.LastName = *input.LastName
+        }
+        if input.Email != nil {
+                u.Email = *input.Email
+        }
+
+        if err := s.repo.Update(ctx, u); err != nil {
+        </span>        return nil, err
+        }
+        return ToUserResponse(u), nil
+}
+
+func (s *UserService) Delete(ctx context.Context, objectId string) error {
+        return s.repo.Delete(ctx, objectId)
+}
+
+func ToUserResponse(u *model.User) *model.UserResponse {
+        return &amp;model.UserResponse{
+                ObjectId:  u.ObjectId,
+                FirstName: u.FirstName,
+                LastName:  u.LastName,
+                Email:     u.Email,
+        }
+}
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">package testutil
+
+import (
+        "context"
+        "database/sql"
+        "fmt"
+        "testing"
+        "time"
+
+        "github.com/golang-migrate/migrate/v4"
+        "github.com/golang-migrate/migrate/v4/database/postgres"
+        _ "github.com/golang-migrate/migrate/v4/source/file"
+        _ "github.com/jackc/pgx/v4/stdlib"
+        "github.com/stretchr/testify/require"
+        "github.com/testcontainers/testcontainers-go"
+        "github.com/testcontainers/testcontainers-go/wait"
+)
+
+// StartPostgresContainer spins up Postgres, runs migrations, and
+// returns a DSN and a container which the caller is expected to terminate when finished.
+func StartPostgresContainer(t *testing.T) (dsn string, pgC testcontaine<span class="cov8" title="1">rs.Container) {
+        ctx := context.Background()
+        req := testcontainers.ContainerRequest{
+                Image: "postgres:15-alpine",
+                Env: map[string]string{
+                        "POSTGRES_USER":     "postgres",
+                        "POSTGRES_PASSWORD": "secret",
+                        "POSTGRES_DB":       "testdb",
+                },
+                ExposedPorts: []string{"5432/tcp"},
+                WaitingFor:   wait.ForListeningPort("5432/tcp").WithStartupTimeout(30 * time.Second),
+        }
+
+        pgC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+                ContainerRequest: req,
+                Started:          true,
+        })
+        require.NoError(t, err)
+
+        host, _ := pgC.Ho</span><span class="cov0" title="0">st(ctx)
+        port, _ := pgC.MappedPort(ctx, "5432")
+        d</span>sn = fmt.Sprintf(
+                "postgres://postgres:secret@%s:%s/testdb?sslmode=disable",
+        <span class="cov8" title="1">        host, port.Port(),
+        )
+
+        runMigrations(t, dsn)
+
+        return dsn, pgC
+}
+
+func runMigrations(t *testing.T, dsn string) {
+        sqlDB, err := sql.O</span>pen("pgx", dsn)
+        require.NoError(t, err)
+        require.NoError(t, sqlDB.Ping())
+
+        driver, err := postgres.WithInstance(sqlDB, &amp;postgres.Config{})
+        require.NoError(t, err)
+
+        m, err := migrate.NewWithDatabaseInstance(
+                "file://../../db/migrations",
+                "postgres",
+                driver,
+        )
+        require.NoError(t, err)
+
+        if err := m.Up(); err != nil &amp;&amp; err != migrate.ErrNoChange {
+                t.Fatalf("migrate up: %v", err)
+        }
+        sqlDB.Close()
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

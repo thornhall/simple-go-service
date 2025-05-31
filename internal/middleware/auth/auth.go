@@ -1,51 +1,88 @@
 package auth
 
-// import (
-// 	"net/http"
-// 	"strings"
+import (
+	"errors"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 
-// 	"github.com/gin-gonic/gin"
-// 	"github.com/golang-jwt/jwt/v4"
-// 	"github.com/thornhall/simple-go-service/internal/service"
-// )
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+)
 
-// func JWTAuth(userSvc *service.UserService, jwtSecret []byte) gin.HandlerFunc {
-// 	return func(ctx *gin.Context) {
-// 		auth := ctx.GetHeader("Authorization")
-// 		parts := strings.SplitN(auth, " ", 2)
-// 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-// 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid Authorization header"})
-// 			return
-// 		}
+func IssueJWT(userID int64, email string) (string, error) {
+	claims := jwt.MapClaims{
+		"sub":   userID,
+		"email": email,
+		"exp":   time.Now().Add(15 * 24 * time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		return "", errors.New("encountered an error when creating user")
+	}
+	return token.SignedString([]byte(jwtSecret))
+}
 
-// 		token, err := jwt.Parse(parts[1], func(t *jwt.Token) (any, error) {
-// 			return jwtSecret, nil
-// 		}, jwt.WithValidMethods([]string{"HS256"}))
-// 		if err != nil || !token.Valid {
-// 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
-// 			return
-// 		}
-// 		claims, ok := token.Claims.(jwt.MapClaims)
-// 		if !ok {
-// 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
-// 			return
-// 		}
+type MyClaims struct {
+	Sub int64 `json:"sub"`
+	jwt.RegisteredClaims
+}
 
-// 		sub, ok := claims["sub"].(string)
-// 		if !ok {
-// 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token missing sub claim"})
-// 			return
-// 		}
+func JWTAuth(jwtSecret []byte) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		auth := ctx.GetHeader("Authorization")
+		parts := strings.SplitN(auth, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			ctx.AbortWithStatusJSON(
+				http.StatusUnauthorized,
+				gin.H{"error": "missing or invalid Authorization header"},
+			)
+			return
+		}
 
-// 		userResp, err := userSvc.Get(sub)
-// 		if err != nil {
-// 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
-// 			return
-// 		}
+		token, err := jwt.ParseWithClaims(
+			parts[1],
+			&MyClaims{},
+			func(t *jwt.Token) (any, error) {
+				if t.Method.Alg() != jwt.SigningMethodHS256.Alg() {
+					return nil, jwt.ErrTokenSignatureInvalid
+				}
+				return jwtSecret, nil
+			},
+			jwt.WithValidMethods([]string{"HS256"}),
+		)
+		if err != nil || !token.Valid {
+			log.Println(err.Error())
+			ctx.AbortWithStatusJSON(
+				http.StatusUnauthorized,
+				gin.H{"error": "missing or invalid Authorization header"},
+			)
+			return
+		}
+		claims, ok := token.Claims.(*MyClaims)
+		if !ok {
+			log.Println("claims is not of type *MyClaims")
+			ctx.AbortWithStatusJSON(
+				http.StatusUnauthorized,
+				gin.H{"error": "missing or invalid Authorization header"},
+			)
+			return
+		}
 
-// 		ctx.Set("userID", sub)
-// 		ctx.Set("currentUser", userResp)
+		if claims.Sub == 0 {
+			log.Println("sub is empty")
+			ctx.AbortWithStatusJSON(
+				http.StatusUnauthorized,
+				gin.H{"error": "missing or invalid Authorization header"},
+			)
+			return
+		}
 
-// 		ctx.Next()
-// 	}
-// }
+		ctx.Set("userObjectId", claims.Sub)
+		ctx.Next()
+	}
+}

@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"errors"
+
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/thornhall/simple-go-service/internal/middleware/auth"
 	"github.com/thornhall/simple-go-service/internal/model"
 	"github.com/thornhall/simple-go-service/internal/repo"
 )
@@ -19,18 +21,27 @@ func NewUserService(repo repo.UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
+func (s *UserService) GetByID(ctx context.Context, id int64) (*model.UserPasswordHash, error) {
+
+	u, err := s.repo.FindById(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return &model.UserPasswordHash{PasswordHash: u.Password}, nil
+}
+
 func (s *UserService) Get(ctx context.Context, objectId string) (*model.UserResponse, error) {
-	u, err := s.repo.FindByID(ctx, objectId)
+	u, err := s.repo.FindByObjectId(ctx, objectId)
 	if err != nil {
 		return nil, ErrNotFound
 	}
 	return ToUserResponse(u), nil
 }
 
-func (s *UserService) Create(ctx context.Context, input model.CreateUserInput) (*model.UserResponse, error) {
+func (s *UserService) Create(ctx context.Context, input model.CreateUserInput) (*model.UserResponse, string, error) {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	u := &model.User{
 		FirstName: input.FirstName,
@@ -38,15 +49,20 @@ func (s *UserService) Create(ctx context.Context, input model.CreateUserInput) (
 		Email:     input.Email,
 		Password:  string(hashed),
 	}
+
 	err = s.repo.Create(ctx, u)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return ToUserResponse(u), nil
+	signedJwt, err := auth.IssueJWT(u.Id, u.Email)
+	if err != nil {
+		return nil, "", err
+	}
+	return ToUserResponse(u), signedJwt, nil
 }
 
 func (s *UserService) Update(ctx context.Context, objectId string, input model.UpdateUserInput) (*model.UserResponse, error) {
-	u, err := s.repo.FindByID(ctx, objectId)
+	u, err := s.repo.FindByObjectId(ctx, objectId)
 	if err != nil {
 		return nil, ErrNotFound
 	}
