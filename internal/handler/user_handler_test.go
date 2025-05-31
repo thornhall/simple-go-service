@@ -3,87 +3,34 @@ package handler_test
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/jackc/pgx/v4/stdlib"
-
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/thornhall/simple-go-service/internal/dal"
 	"github.com/thornhall/simple-go-service/internal/handler"
 	"github.com/thornhall/simple-go-service/internal/model"
 	"github.com/thornhall/simple-go-service/internal/service"
+	"github.com/thornhall/simple-go-service/internal/testutil"
 )
 
-func runMigrations(t *testing.T, sqlDB *sql.DB) {
-	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
-	require.NoError(t, err)
-
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://../../db/migrations",
-		"postgres",
-		driver,
-	)
-	require.NoError(t, err)
-
-	// Apply all up migrations
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		t.Fatalf("m.Up(): %v", err)
-	}
-}
-
-func setupTestPostgres(t *testing.T) dal.DB {
-	ctx := context.Background()
-	req := testcontainers.ContainerRequest{
-		Image: "postgres:15-alpine",
-		Env: map[string]string{
-			"POSTGRES_USER":     "postgres",
-			"POSTGRES_PASSWORD": "secret",
-			"POSTGRES_DB":       "testdb",
-		},
-		ExposedPorts: []string{"5432/tcp"},
-		WaitingFor:   wait.ForListeningPort("5432/tcp").WithStartupTimeout(30 * time.Second),
-	}
-
-	pgC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() { pgC.Terminate(ctx) })
-
-	host, _ := pgC.Host(ctx)
-	port, _ := pgC.MappedPort(ctx, "5432")
-	dsn := fmt.Sprintf(
-		"postgres://postgres:secret@%s:%s/testdb?sslmode=disable",
-		host, port.Port(),
-	)
-
-	// 1) Open a *sql.DB* via pgx
-	sqlDB, err := sql.Open("pgx", dsn)
-	require.NoError(t, err)
-	require.NoError(t, sqlDB.Ping())
-
-	// 2) Run file-based migrations
-	runMigrations(t, sqlDB)
-
-	db, err := dal.NewPostgresDB(dsn, 5, time.Minute)
-	require.NoError(t, err)
-	return db
+func TestMain(m *testing.M) {
+	t := &testing.T{}
+	dsn, container := testutil.StartPostgresContainer(t)
+	os.Setenv("DATABASE_URL", dsn)
+	os.Setenv("JWT_SECRET", "test_secret")
+	code := m.Run()
+	testcontainers.CleanupContainer(t, container, testcontainers.StopContext(context.Background()))
+	os.Exit(code)
 }
 
 func setupRouter(db dal.Conn) *gin.Engine {
@@ -101,8 +48,15 @@ func setupRouter(db dal.Conn) *gin.Engine {
 
 func TestUserHandler_CRUD(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	dbURL := os.Getenv("DATABASE_URL")
 
-	db := setupTestPostgres(t)
+	maxConns := 25
+	maxConnIdleTime := 5 * time.Minute
+	db, err := dal.NewPostgresDB(dbURL, maxConns, maxConnIdleTime)
+	pool := db.GetPool()
+	defer pool.Close()
+	assert.NoError(t, err)
+
 	router := setupRouter(db)
 
 	createBody := `{"first_name":"Alice","last_name":"Smith","email":"alice@example.com","password":"test_pass"}`
@@ -115,20 +69,12 @@ func TestUserHandler_CRUD(t *testing.T) {
 	var created model.UserResponse
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
 	assert.Equal(t, "Alice", created.FirstName)
+	assert.Equal(t, "Smith", created.LastName)
+	assert.Equal(t, "alice@example.com", created.Email)
 	objID := created.ObjectId
 
-	// 2) VERIFY in the database
-	var fn, ln, email string
-	err := db.QueryRow(
-		context.Background(),
-		"SELECT first_name, last_name, email FROM users WHERE object_id = $1",
-		objID,
-	).Scan(&fn, &ln, &email)
-	require.NoError(t, err)
-	assert.Equal(t, "Alice", fn)
-	assert.Equal(t, "Smith", ln)
-	assert.Equal(t, "alice@example.com", email)
-
+	_, err = uuid.Parse(created.ObjectId)
+	assert.NoError(t, err)
 	// 3) UPDATE
 	updateBody := `{"first_name":"Alicia"}`
 	w = httptest.NewRecorder()

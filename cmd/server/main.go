@@ -15,11 +15,11 @@ func main() {
 		log.Fatal("JWT_SECRET is required")
 	}
 
-	engine, err := NewServer(dbURL, jwtSecret)
+	server, err := NewServer(dbURL, jwtSecret)
 	if err != nil {
 		log.Fatalf("failed to build server: %v", err)
 	}
 
 	log.Println("listening on :8080")
-	engine.Run(":8080")
+	server.engine.Run(":8080")
 }

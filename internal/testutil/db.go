@@ -17,8 +17,8 @@ import (
 )
 
 // StartPostgresContainer spins up Postgres, runs migrations, and
-// returns a DSN and a cleanup function.
-func StartPostgresContainer(t *testing.T) (dsn string, cleanup func()) {
+// returns a DSN and a container which the caller is expected to terminate when finished.
+func StartPostgresContainer(t *testing.T) (dsn string, pgC testcontainers.Container) {
 	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
 		Image: "postgres:15-alpine",
@@ -37,10 +37,6 @@ func StartPostgresContainer(t *testing.T) (dsn string, cleanup func()) {
 	})
 	require.NoError(t, err)
 
-	cleanup = func() {
-		pgC.Terminate(ctx)
-	}
-
 	host, _ := pgC.Host(ctx)
 	port, _ := pgC.MappedPort(ctx, "5432")
 	dsn = fmt.Sprintf(
@@ -48,10 +44,9 @@ func StartPostgresContainer(t *testing.T) (dsn string, cleanup func()) {
 		host, port.Port(),
 	)
 
-	// run migrations
 	runMigrations(t, dsn)
 
-	return dsn, cleanup
+	return dsn, pgC
 }
 
 func runMigrations(t *testing.T, dsn string) {
@@ -63,7 +58,7 @@ func runMigrations(t *testing.T, dsn string) {
 	require.NoError(t, err)
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://../../db/migrations", // adjust if needed
+		"file://../../db/migrations",
 		"postgres",
 		driver,
 	)
@@ -72,4 +67,5 @@ func runMigrations(t *testing.T, dsn string) {
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		t.Fatalf("migrate up: %v", err)
 	}
+	sqlDB.Close()
 }

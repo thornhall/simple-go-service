@@ -24,6 +24,7 @@ type Tx interface {
 type DB interface {
 	Conn
 	Begin(ctx context.Context) (Tx, error)
+	GetPool() *pgxpool.Pool
 }
 
 type pgxDB struct {
@@ -46,4 +47,8 @@ func (p *pgxDB) Begin(ctx context.Context) (Tx, error) {
 
 func (p *pgxDB) Config() *pgxpool.Config {
 	return p.Pool.Config()
+}
+
+func (p *pgxDB) GetPool() *pgxpool.Pool {
+	return p.Pool
 }
