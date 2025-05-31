@@ -34,7 +34,7 @@ func runMigrations(t *testing.T, sqlDB *sql.DB) {
 	require.NoError(t, err)
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://../../db/migrations", // adjust this path
+		"file://../../db/migrations",
 		"postgres",
 		driver,
 	)
