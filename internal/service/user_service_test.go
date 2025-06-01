@@ -86,6 +86,9 @@ func TestUserService_Create(t *testing.T) {
 	}
 	resp, jwtSecret, err := svc.Create(t.Context(), in)
 	assert.NoError(t, err)
+	if err != nil {
+		return
+	}
 	assert.NotNil(t, captured)
 	assert.Equal(t, in.FirstName, captured.FirstName)
 	assert.Equal(t, in.LastName, captured.LastName)
