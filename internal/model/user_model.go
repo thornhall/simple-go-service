@@ -32,6 +32,15 @@ type UserResponse struct {
 	Email     string `json:"email"`
 }
 
+type CreateUserResponse struct {
+	*UserResponse
+	JWT string `json:"jwt"`
+}
+
+type UserPasswordHash struct {
+	PasswordHash string `json:"password_hash"`
+}
+
 // POST
 type CreateUserInput struct {
 	FirstName string `json:"first_name"  binding:"required"`

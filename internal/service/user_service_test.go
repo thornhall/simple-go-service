@@ -14,14 +14,18 @@ import (
 )
 
 type fakeRepo struct {
-	FindByIDFunc func(id string) (*model.User, error)
-	CreateFunc   func(u *model.User) error
-	UpdateFunc   func(u *model.User) error
-	DeleteFunc   func(id string) error
+	FindByIdFunc       func(id int64) (*model.User, error)
+	FindByObjectIdFunc func(id string) (*model.User, error)
+	CreateFunc         func(u *model.User) error
+	UpdateFunc         func(u *model.User) error
+	DeleteFunc         func(id string) error
 }
 
-func (f *fakeRepo) FindByID(ctx context.Context, id string) (*model.User, error) {
-	return f.FindByIDFunc(id)
+func (f *fakeRepo) FindById(ctx context.Context, id int64) (*model.User, error) {
+	return f.FindByIdFunc(id)
+}
+func (f *fakeRepo) FindByObjectId(ctx context.Context, id string) (*model.User, error) {
+	return f.FindByObjectIdFunc(id)
 }
 func (f *fakeRepo) Create(ctx context.Context, u *model.User) error { return f.CreateFunc(u) }
 func (f *fakeRepo) Update(ctx context.Context, u *model.User) error { return f.UpdateFunc(u) }
@@ -41,7 +45,7 @@ func TestUserService_Get(t *testing.T) {
 		UpdatedAt: updatedAt,
 	}
 	repo := &fakeRepo{
-		FindByIDFunc: func(id string) (*model.User, error) {
+		FindByObjectIdFunc: func(id string) (*model.User, error) {
 			assert.Equal(t, "abc123", id)
 			return want, nil
 		},
@@ -56,7 +60,7 @@ func TestUserService_Get(t *testing.T) {
 
 	// — repo error → ErrNotFound
 	repoErr := &fakeRepo{
-		FindByIDFunc: func(_ string) (*model.User, error) {
+		FindByObjectIdFunc: func(_ string) (*model.User, error) {
 			return nil, errors.New("db is down")
 		},
 	}
@@ -80,12 +84,16 @@ func TestUserService_Create(t *testing.T) {
 		LastName:  "Bar",
 		Email:     "foo@bar.com",
 	}
-	resp, err := svc.Create(t.Context(), in)
+	resp, jwtSecret, err := svc.Create(t.Context(), in)
 	assert.NoError(t, err)
+	if err != nil {
+		return
+	}
 	assert.NotNil(t, captured)
 	assert.Equal(t, in.FirstName, captured.FirstName)
 	assert.Equal(t, in.LastName, captured.LastName)
 	assert.Equal(t, in.Email, captured.Email)
+	assert.NotNil(t, jwtSecret)
 
 	_, parseErr := uuid.Parse(resp.ObjectId)
 	assert.NoError(t, parseErr)
@@ -94,7 +102,7 @@ func TestUserService_Create(t *testing.T) {
 func TestUserService_Update(t *testing.T) {
 	// — not found
 	repoNF := &fakeRepo{
-		FindByIDFunc: func(_ string) (*model.User, error) {
+		FindByObjectIdFunc: func(_ string) (*model.User, error) {
 			return nil, errors.New("oops")
 		},
 	}
@@ -110,7 +118,7 @@ func TestUserService_Update(t *testing.T) {
 	}
 	var updated *model.User
 	repo := &fakeRepo{
-		FindByIDFunc: func(_ string) (*model.User, error) {
+		FindByObjectIdFunc: func(_ string) (*model.User, error) {
 			return existing, nil
 		},
 		UpdateFunc: func(u *model.User) error {

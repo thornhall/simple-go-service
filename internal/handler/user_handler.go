@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -43,19 +44,18 @@ func (h *UserHandler) Create(ctx *gin.Context) {
 			return
 		}
 	}
-	user, err := h.Svc.Create(ctx, input)
+	user, jwt, err := h.Svc.Create(ctx, input)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("user create failed with error: %v", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "encountered an error while creating a new user"})
 		return
 	}
 
-	//token, err := auth.GenerateToken(user.ObjectId)
-	// if err != nil {
-	// 	ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not create token"})
-	// 	return
-	// }
-
-	ctx.JSON(http.StatusCreated, user)
+	resp := &model.CreateUserResponse{
+		UserResponse: user,
+		JWT:          jwt,
+	}
+	ctx.JSON(http.StatusCreated, resp)
 }
 
 func (h *UserHandler) Update(ctx *gin.Context) {

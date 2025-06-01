@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgres://postgres:pass@localhost:5432/simple_service_test?sslmode=disable
+      JWT_SECRET: "super_test_secret"
     services:
       db:
         image: postgres:15
