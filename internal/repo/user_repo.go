@@ -6,6 +6,7 @@ import (
 )
 
 type UserRepository interface {
+	FindByEmail(ctx context.Context, email string) (*model.User, error)
 	FindById(ctx context.Context, userId int64) (*model.User, error)
 	FindByObjectId(ctx context.Context, objectID string) (*model.User, error)
 	Create(ctx context.Context, u *model.User) error

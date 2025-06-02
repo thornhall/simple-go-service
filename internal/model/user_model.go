@@ -5,15 +5,15 @@ import (
 )
 
 type User struct {
-	Id        int64     `db:"id"`
-	ObjectId  string    `db:"object_id"`
-	FirstName string    `db:"first_name"`
-	LastName  string    `db:"last_name"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
-	IsDeleted bool      `db:"is_deleted"`
-	Email     string    `db:"email"`
-	Password  string    `db:"password_hash"`
+	Id           int64     `db:"id"`
+	ObjectId     string    `db:"object_id"`
+	FirstName    string    `db:"first_name"`
+	LastName     string    `db:"last_name"`
+	CreatedAt    time.Time `db:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"`
+	IsDeleted    bool      `db:"is_deleted"`
+	Email        string    `db:"email"`
+	PasswordHash string    `db:"password_hash"`
 }
 
 type UserCreateResponse struct {
@@ -37,19 +37,21 @@ type CreateUserResponse struct {
 	JWT string `json:"jwt"`
 }
 
-type UserPasswordHash struct {
-	PasswordHash string `json:"password_hash"`
+// POST /users/login
+type LoginUserInput struct {
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
 }
 
-// POST
+// POST /users
 type CreateUserInput struct {
-	FirstName string `json:"first_name"  binding:"required"`
+	FirstName string `json:"first_name" binding:"required"`
 	LastName  string `json:"last_name"`
 	Email     string `json:"email" binding:"required,email"`
 	Password  string `json:"password" binding:"required,min=8,max=64"`
 }
 
-// PUT
+// PUT /users
 type UpdateUserInput struct {
 	FirstName *string `json:"first_name,omitempty"`
 	LastName  *string `json:"last_name,omitempty"`

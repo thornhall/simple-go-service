@@ -82,7 +82,7 @@ func JWTAuth(jwtSecret []byte) gin.HandlerFunc {
 			return
 		}
 
-		ctx.Set("userObjectId", claims.Sub)
+		ctx.Set("userId", claims.Sub)
 		ctx.Next()
 	}
 }

@@ -13,8 +13,8 @@ import (
 )
 
 func fakeProtectedHandler(c *gin.Context) {
-	if objID, exists := c.Get("userObjectId"); exists {
-		c.JSON(http.StatusOK, gin.H{"got": objID})
+	if userId, exists := c.Get("userId"); exists {
+		c.JSON(http.StatusOK, gin.H{"got": userId})
 	} else {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "no userObjectId found"})
 	}
