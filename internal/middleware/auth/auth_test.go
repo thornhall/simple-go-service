@@ -75,5 +75,5 @@ func TestJWTAuth_Middleware(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), `"got":1`)
+	assert.Contains(t, w.Body.String(), `"got":"1"`)
 }

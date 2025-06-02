@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,8 +14,9 @@ import (
 )
 
 func IssueJWT(userID int64, email string) (string, error) {
+	strUserId := strconv.FormatInt(userID, 10)
 	claims := jwt.MapClaims{
-		"sub":   userID,
+		"sub":   strUserId,
 		"email": email,
 		"exp":   time.Now().Add(15 * 24 * time.Hour).Unix(),
 		"iat":   time.Now().Unix(),
@@ -25,11 +27,6 @@ func IssueJWT(userID int64, email string) (string, error) {
 		return "", errors.New("encountered an error when creating user")
 	}
 	return token.SignedString([]byte(jwtSecret))
-}
-
-type MyClaims struct {
-	Sub int64 `json:"sub"`
-	jwt.RegisteredClaims
 }
 
 func JWTAuth(jwtSecret []byte) gin.HandlerFunc {
@@ -46,7 +43,7 @@ func JWTAuth(jwtSecret []byte) gin.HandlerFunc {
 
 		token, err := jwt.ParseWithClaims(
 			parts[1],
-			&MyClaims{},
+			&jwt.RegisteredClaims{},
 			func(t *jwt.Token) (any, error) {
 				if t.Method.Alg() != jwt.SigningMethodHS256.Alg() {
 					return nil, jwt.ErrTokenSignatureInvalid
@@ -63,7 +60,7 @@ func JWTAuth(jwtSecret []byte) gin.HandlerFunc {
 			)
 			return
 		}
-		claims, ok := token.Claims.(*MyClaims)
+		claims, ok := token.Claims.(*jwt.RegisteredClaims)
 		if !ok {
 			log.Println("claims is not of type *MyClaims")
 			ctx.AbortWithStatusJSON(
@@ -73,7 +70,7 @@ func JWTAuth(jwtSecret []byte) gin.HandlerFunc {
 			return
 		}
 
-		if claims.Sub == 0 {
+		if claims.Subject == "" {
 			log.Println("sub is empty")
 			ctx.AbortWithStatusJSON(
 				http.StatusUnauthorized,
@@ -82,7 +79,7 @@ func JWTAuth(jwtSecret []byte) gin.HandlerFunc {
 			return
 		}
 
-		ctx.Set("userId", claims.Sub)
+		ctx.Set("userId", claims.Subject)
 		ctx.Next()
 	}
 }

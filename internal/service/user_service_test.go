@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/thornhall/simple-go-service/internal/middleware/auth"
 	"github.com/thornhall/simple-go-service/internal/model"
 )
 
@@ -110,7 +110,7 @@ func TestUserService_Login_ReturnsValidJWT(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, rawToken)
 
-	parsed, err := jwt.ParseWithClaims(rawToken, &auth.MyClaims{}, func(token *jwt.Token) (interface{}, error) {
+	parsed, err := jwt.ParseWithClaims(rawToken, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -121,9 +121,9 @@ func TestUserService_Login_ReturnsValidJWT(t *testing.T) {
 	require.True(t, parsed.Valid, "token should be valid")
 
 	// — assert on the claims you expect (e.g. "sub" == user ID, exp is in the future, etc.)
-	claims, ok := parsed.Claims.(*auth.MyClaims)
+	claims, ok := parsed.Claims.(*jwt.RegisteredClaims)
 	require.True(t, ok, "claims should be of type MyClaims")
-	assert.Equal(t, want.Id, claims.Sub, "`sub` should match the user's ID`")
+	assert.Equal(t, strconv.FormatInt(want.Id, 10), claims.Subject, "`sub` should match the user's ID`")
 	assert.False(t, claims.ExpiresAt.Time.Before(time.Now()), "expiration should be in the future")
 	assert.False(t, claims.IssuedAt.Time.After(time.Now()), "issued-at should not be in the future")
 }
