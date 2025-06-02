@@ -11,6 +11,7 @@ func RegisterUserRoutes(router *gin.Engine, svc *service.UserService) {
 	users := router.Group("/users")
 	{
 		users.GET("/:object_id", h.Get)
+		users.POST("/login", h.Login)
 		users.POST("", h.Create)
 		users.PUT("/:object_id", h.Update)
 		users.DELETE("/:object_id", h.Delete)

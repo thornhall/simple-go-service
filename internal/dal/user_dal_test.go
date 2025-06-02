@@ -16,6 +16,80 @@ import (
 	"github.com/thornhall/simple-go-service/internal/model"
 )
 
+func TestUserRepo_FindByEmail(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	assert.NoError(t, err)
+	repo := dal.NewUserRepository(mockPool)
+	now := time.Now().Truncate(time.Second)
+	email := "a@example.com"
+
+	password, err := bcrypt.GenerateFromPassword([]byte("test_password"), bcrypt.DefaultCost)
+	assert.NoError(t, err)
+	tests := []struct {
+		name      string
+		email     string
+		mockSetup func()
+		wantUser  *model.User
+		wantErr   bool
+	}{
+		{
+			name:  "found",
+			email: email,
+			mockSetup: func() {
+				rows := pgxmock.NewRows([]string{
+					"id", "object_id", "first_name", "last_name", "email", "created_at", "updated_at", "password_hash",
+				}).AddRow(int64(1234), "uuid-1234", "Alice", "Smith", email, now, now, string(password))
+
+				mockPool.
+					ExpectQuery(`SELECT id, object_id, first_name, last_name, email, created_at, updated_at, password_hash`).
+					WithArgs(email).
+					WillReturnRows(rows)
+			},
+			wantUser: &model.User{
+				Id:           int64(1234),
+				ObjectId:     "uuid-1234",
+				FirstName:    "Alice",
+				LastName:     "Smith",
+				Email:        email,
+				CreatedAt:    now,
+				UpdatedAt:    now,
+				PasswordHash: string(password),
+			},
+			wantErr: false,
+		},
+		{
+			name:  "not found",
+			email: "random@example.com",
+			mockSetup: func() {
+				mockPool.
+					ExpectQuery(`SELECT id, object_id, first_name, last_name, email, created_at, updated_at`).
+					WithArgs("random@example.com").
+					WillReturnError(pgx.ErrNoRows)
+			},
+			wantUser: nil,
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mockSetup()
+
+			u, err := repo.FindByEmail(context.Background(), tt.email)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, u)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantUser, u)
+			}
+			assert.NoError(t, mockPool.ExpectationsWereMet())
+		})
+	}
+}
+
 func TestUserRepo_FindById(t *testing.T) {
 	mockPool, err := pgxmock.NewPool()
 	assert.NoError(t, err)
@@ -47,14 +121,14 @@ func TestUserRepo_FindById(t *testing.T) {
 					WillReturnRows(rows)
 			},
 			wantUser: &model.User{
-				Id:        int64(1234),
-				ObjectId:  "uuid-1234",
-				FirstName: "Alice",
-				LastName:  "Smith",
-				Email:     "a@example.com",
-				CreatedAt: now,
-				UpdatedAt: now,
-				Password:  string(password),
+				Id:           int64(1234),
+				ObjectId:     "uuid-1234",
+				FirstName:    "Alice",
+				LastName:     "Smith",
+				Email:        "a@example.com",
+				CreatedAt:    now,
+				UpdatedAt:    now,
+				PasswordHash: string(password),
 			},
 			wantErr: false,
 		},
@@ -120,14 +194,14 @@ func TestUserRepo_FindByObjectID(t *testing.T) {
 					WillReturnRows(rows)
 			},
 			wantUser: &model.User{
-				Id:        int64(1),
-				ObjectId:  "uuid-1234",
-				FirstName: "Alice",
-				LastName:  "Smith",
-				Email:     "a@example.com",
-				CreatedAt: now,
-				UpdatedAt: now,
-				Password:  string(password),
+				Id:           int64(1),
+				ObjectId:     "uuid-1234",
+				FirstName:    "Alice",
+				LastName:     "Smith",
+				Email:        "a@example.com",
+				CreatedAt:    now,
+				UpdatedAt:    now,
+				PasswordHash: string(password),
 			},
 			wantErr: false,
 		},
@@ -186,7 +260,7 @@ func TestUserRepo_Create(t *testing.T) {
 
 				mockPool.
 					ExpectQuery(`INSERT INTO users.*RETURNING object_id, created_at, updated_at`).
-					WithArgs(inputUser.FirstName, inputUser.LastName, inputUser.Email, inputUser.Password).
+					WithArgs(inputUser.FirstName, inputUser.LastName, inputUser.Email, inputUser.PasswordHash).
 					WillReturnRows(rows)
 			},
 			wantErr: false,
@@ -196,7 +270,7 @@ func TestUserRepo_Create(t *testing.T) {
 			mockSetup: func(objectId string, inputUser *model.User) {
 				mockPool.
 					ExpectQuery(`INSERT INTO users.*RETURNING object_id, created_at, updated_at`).
-					WithArgs(inputUser.FirstName, inputUser.LastName, inputUser.Email, inputUser.Password).
+					WithArgs(inputUser.FirstName, inputUser.LastName, inputUser.Email, inputUser.PasswordHash).
 					WillReturnError(fmt.Errorf("insert failed"))
 			},
 			wantErr: true,
@@ -207,10 +281,10 @@ func TestUserRepo_Create(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			inputUser := &model.User{
-				FirstName: "Alice",
-				LastName:  "Smith",
-				Email:     "alice@example.com",
-				Password:  string(password),
+				FirstName:    "Alice",
+				LastName:     "Smith",
+				Email:        "alice@example.com",
+				PasswordHash: string(password),
 			}
 
 			testObjectId := uuid.New().String()

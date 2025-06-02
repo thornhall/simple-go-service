@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -12,6 +14,7 @@ import (
 )
 
 var ErrNotFound = errors.New("user not found")
+var ErrInvalidAuth = errors.New("invalid email or password")
 
 type UserService struct {
 	repo repo.UserRepository
@@ -21,13 +24,22 @@ func NewUserService(repo repo.UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-func (s *UserService) GetByID(ctx context.Context, id int64) (*model.UserPasswordHash, error) {
-
-	u, err := s.repo.FindById(ctx, id)
+func (s *UserService) Login(ctx context.Context, input model.LoginUserInput) (string, error) {
+	user, err := s.repo.FindByEmail(ctx, input.Email)
 	if err != nil {
-		return nil, err
+		return "", ErrInvalidAuth
 	}
-	return &model.UserPasswordHash{PasswordHash: u.Password}, nil
+	passwordHash := user.PasswordHash
+	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(input.Password))
+	if err != nil {
+		return "", ErrInvalidAuth
+	}
+	jwt, err := auth.IssueJWT(user.Id, user.Email)
+	if err != nil {
+		log.Println(fmt.Errorf("error generating jwt %w", err))
+		return "", errors.New("unable to generate jwt")
+	}
+	return jwt, nil
 }
 
 func (s *UserService) Get(ctx context.Context, objectId string) (*model.UserResponse, error) {
@@ -44,10 +56,10 @@ func (s *UserService) Create(ctx context.Context, input model.CreateUserInput) (
 		return nil, "", err
 	}
 	u := &model.User{
-		FirstName: input.FirstName,
-		LastName:  input.LastName,
-		Email:     input.Email,
-		Password:  string(hashed),
+		FirstName:    input.FirstName,
+		LastName:     input.LastName,
+		Email:        input.Email,
+		PasswordHash: string(hashed),
 	}
 
 	err = s.repo.Create(ctx, u)

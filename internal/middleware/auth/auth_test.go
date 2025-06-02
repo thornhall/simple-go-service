@@ -13,8 +13,8 @@ import (
 )
 
 func fakeProtectedHandler(c *gin.Context) {
-	if objID, exists := c.Get("userObjectId"); exists {
-		c.JSON(http.StatusOK, gin.H{"got": objID})
+	if userId, exists := c.Get("userId"); exists {
+		c.JSON(http.StatusOK, gin.H{"got": userId})
 	} else {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "no userObjectId found"})
 	}
@@ -75,5 +75,5 @@ func TestJWTAuth_Middleware(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), `"got":1`)
+	assert.Contains(t, w.Body.String(), `"got":"1"`)
 }

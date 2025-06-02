@@ -1,24 +1,34 @@
-// internal/service/user_service_test.go
 package service
 
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/thornhall/simple-go-service/internal/model"
 )
 
 type fakeRepo struct {
+	FindByEmailFunc    func(email string) (*model.User, error)
 	FindByIdFunc       func(id int64) (*model.User, error)
 	FindByObjectIdFunc func(id string) (*model.User, error)
 	CreateFunc         func(u *model.User) error
 	UpdateFunc         func(u *model.User) error
 	DeleteFunc         func(id string) error
+}
+
+func (f *fakeRepo) FindByEmail(ctx context.Context, email string) (*model.User, error) {
+	return f.FindByEmailFunc(email)
 }
 
 func (f *fakeRepo) FindById(ctx context.Context, id int64) (*model.User, error) {
@@ -52,7 +62,7 @@ func TestUserService_Get(t *testing.T) {
 	}
 	svc := NewUserService(repo)
 	got, err := svc.Get(t.Context(), "abc123")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, want.ObjectId, got.ObjectId)
 	assert.Equal(t, want.FirstName, got.FirstName)
 	assert.Equal(t, want.LastName, got.LastName)
@@ -67,6 +77,55 @@ func TestUserService_Get(t *testing.T) {
 	svc = NewUserService(repoErr)
 	_, err = svc.Get(t.Context(), "doesnt-matter")
 	assert.Equal(t, ErrNotFound, err)
+}
+
+func TestUserService_Login_ReturnsValidJWT(t *testing.T) {
+	createdAt := time.Now().Add(-time.Hour)
+	updatedAt := time.Now()
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("test"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	want := &model.User{
+		Id:           1,
+		ObjectId:     "abc123",
+		FirstName:    "Jane",
+		LastName:     "Doe",
+		Email:        "jane@doe.com",
+		CreatedAt:    createdAt,
+		UpdatedAt:    updatedAt,
+		PasswordHash: string(passwordHash),
+	}
+	repo := &fakeRepo{
+		FindByEmailFunc: func(email string) (*model.User, error) {
+			assert.Equal(t, "jane@doe.com", email)
+			return want, nil
+		},
+	}
+
+	svc := NewUserService(repo)
+	rawToken, err := svc.Login(context.Background(), model.LoginUserInput{
+		Email:    "jane@doe.com",
+		Password: "test",
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, rawToken)
+
+	parsed, err := jwt.ParseWithClaims(rawToken, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(os.Getenv("JWT_SECRET")), nil
+	})
+	require.NoError(t, err, "token should parse without error")
+	require.NotNil(t, parsed)
+	require.True(t, parsed.Valid, "token should be valid")
+
+	// — assert on the claims you expect (e.g. "sub" == user ID, exp is in the future, etc.)
+	claims, ok := parsed.Claims.(*jwt.RegisteredClaims)
+	require.True(t, ok, "claims should be of type MyClaims")
+	assert.Equal(t, strconv.FormatInt(want.Id, 10), claims.Subject, "`sub` should match the user's ID`")
+	assert.False(t, claims.ExpiresAt.Time.Before(time.Now()), "expiration should be in the future")
+	assert.False(t, claims.IssuedAt.Time.After(time.Now()), "issued-at should not be in the future")
 }
 
 func TestUserService_Create(t *testing.T) {
@@ -85,10 +144,7 @@ func TestUserService_Create(t *testing.T) {
 		Email:     "foo@bar.com",
 	}
 	resp, jwtSecret, err := svc.Create(t.Context(), in)
-	assert.NoError(t, err)
-	if err != nil {
-		return
-	}
+	require.NoError(t, err)
 	assert.NotNil(t, captured)
 	assert.Equal(t, in.FirstName, captured.FirstName)
 	assert.Equal(t, in.LastName, captured.LastName)
@@ -133,8 +189,7 @@ func TestUserService_Update(t *testing.T) {
 		FirstName: &newFirst,
 		Email:     &newEmail,
 	})
-	assert.NoError(t, err)
-
+	require.NoError(t, err)
 	assert.Equal(t, "id", resp.ObjectId)
 	assert.Equal(t, "NewFirst", resp.FirstName)
 	assert.Equal(t, "Name", resp.LastName)
